@@ -2,7 +2,7 @@
 from mcp.server.fastmcp import FastMCP
 from . import core
 
-mcp = FastMCP('GarminAI Public Demo', json_response=True)
+mcp = FastMCP('GarminAI Public Demo', stateless_http=True, json_response=True)
 
 @mcp.tool()
 def get_sync_status() -> dict:
