@@ -1,0 +1,98 @@
+{
+  "mode": "DEMO",
+  "athlete": "Demo Runner (fictional)",
+  "activities": [
+    {
+      "id": "demo-run-001",
+      "date": "2026-11-03",
+      "sport": "running",
+      "title": "Easy aerobic run",
+      "distance_km": 8.1,
+      "duration_min": 57.5,
+      "avg_hr": 131,
+      "max_hr": 148,
+      "laps": [
+        {
+          "km": 1,
+          "pace_sec_per_km": 435,
+          "avg_hr": 122
+        },
+        {
+          "km": 2,
+          "pace_sec_per_km": 426,
+          "avg_hr": 130
+        },
+        {
+          "km": 3,
+          "pace_sec_per_km": 423,
+          "avg_hr": 132
+        }
+      ]
+    },
+    {
+      "id": "demo-run-002",
+      "date": "2026-11-05",
+      "sport": "running",
+      "title": "Tempo progression",
+      "distance_km": 7.0,
+      "duration_min": 37.3,
+      "avg_hr": 162,
+      "max_hr": 183,
+      "laps": [
+        {
+          "km": 1,
+          "pace_sec_per_km": 353,
+          "avg_hr": 145
+        },
+        {
+          "km": 2,
+          "pace_sec_per_km": 337,
+          "avg_hr": 155
+        },
+        {
+          "km": 3,
+          "pace_sec_per_km": 322,
+          "avg_hr": 164
+        },
+        {
+          "km": 4,
+          "pace_sec_per_km": 305,
+          "avg_hr": 174
+        }
+      ]
+    },
+    {
+      "id": "demo-run-003",
+      "date": "2026-11-08",
+      "sport": "running",
+      "title": "Long easy run",
+      "distance_km": 17.1,
+      "duration_min": 118.0,
+      "avg_hr": 142,
+      "max_hr": 163,
+      "laps": []
+    },
+    {
+      "id": "demo-walk-004",
+      "date": "2026-11-09",
+      "sport": "walking",
+      "title": "Recovery walk",
+      "distance_km": 3.4,
+      "duration_min": 45.0,
+      "avg_hr": 102,
+      "max_hr": 120,
+      "laps": []
+    },
+    {
+      "id": "demo-run-005",
+      "date": "2026-11-10",
+      "sport": "running",
+      "title": "Easy run with strides",
+      "distance_km": 6.2,
+      "duration_min": 41.8,
+      "avg_hr": 138,
+      "max_hr": 168,
+      "laps": []
+    }
+  ]
+}
