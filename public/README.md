@@ -1,3 +1,23 @@
+# GarminAI Public v0.6 — PostgreSQL / User Isolation Staging
+
+**DEMO ONLY:** Garmin OAuth login, actual Garmin Activity API push intake, ChatGPT
+per-user authentication and AI analysis with real data are **NOT enabled**.
+
+- `garminai_public/postgres_store.py`: verified-principal PostgreSQL query layer.
+- `sql/001_init.sql`: PostgreSQL row-level security schema and consent tables.
+- `garminai_public/token_vault.py`: AES-256-GCM encryption primitives, with identity binding.
+- `garminai_public/db_readiness.py`: credential-safe configuration readout.
+- Six fictional-data MCP tools and scientific source library unchanged.
+
+**Important:** Database migration and real database integration have **not** been tested
+against the user's Neon instance. Unit tests use fake connections and validate SQL
+contracts; no private data is accessed.
+
+**READ FIRST:** `docs/V06_POSTGRES_NEON_SR.md`.
+
+Install dependencies and test: `python -m pip install -r requirements.txt pytest`
+then `python -m pytest -q` from `public/`.
+
 # GarminAI Public v0.5 — OAuth PKCE staging
 
 Garmin-approved Activity API integration preparation, **no live Garmin connection yet**.
