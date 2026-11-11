@@ -1,14 +1,23 @@
-# GarminAI Public v0.3 — DEMO MCP (zaštićen razvojni pristup)
+# GarminAI Public v0.5 — OAuth PKCE staging
 
-**DEMO ONLY. Bez stvarnih Garmin podataka. NIJE spremno za javne korisnike.**
+Garmin-approved Activity API integration preparation, **no live Garmin connection yet**.
 
-- Python MCP server, Render Streamable HTTP `/mcp`, `/healthz`.
-- `GARMINAI_DEMO_TOKEN_SHA256` environment variable obavezan za MCP; bez njega 503, bez validnog Bearer tokena 401.
-- Token je samo zajednička razvojna lozinka, ne korisnička autentifikacija ili Garmin OAuth.
-- Šest demo MCP alatki, rangirana ručno odobrena literatura, predlozi novih radova sa obaveznom proverom.
-- Primer izolacije po identitetu u `tenant_store.py` nije povezan sa javnim serverom i ne čuva stvarne aktivnosti.
-- Pokrenuti testove: `pip install -r requirements.txt pytest` pa `pytest -q` iz `public/`.
+See `docs/V05_GARMIN_OAUTH_SR.md` for Serbian instructions and security requirements.
 
-**Uputstva:** `docs/DEPLOY_V03_SR.md`, `docs/SECURITY_AND_OAUTH_SR.md`, `docs/LITERATURE_V03_SR.md`.
+# GarminAI Public v0.4 — DEMO MCP + evidence library + identity isolation tests
 
-Nikad ne postavljati privatni GarminAI Windows, lične FIT/JSON arhive ili tajne na ovaj repozitorijum.
+A public **demo-only** MCP server with six tools and reviewed training literature.
+The public server has no real users or Garmin integration.
+
+- `/healthz` → version `0.4.0`, mode `DEMO_ONLY`.
+- `/mcp` → static operator bearer gate from v0.3; NOT user OAuth.
+- `garminai_public/identity.py` → local-only verified test principals.
+- `garminai_public/tenant_db.py` → local-only tenant-isolated SQLite test store.
+- Approved literature remains under `data/literature/approved.json`, with manual-review policy.
+
+**Never upload Garmin credentials or private Windows application data.**
+**Do not connect real athlete data to this server.**
+
+Testing: `python -m pip install -r requirements.txt pytest` then `python -m pytest -q` from `public/`.
+Deployment: root `render.yaml` points at `public/`. Set `GARMINAI_DEMO_TOKEN_SHA256` only in Render Environment.
+See `docs/V04_SECURITY_SR.md` for boundaries and next implementation steps.

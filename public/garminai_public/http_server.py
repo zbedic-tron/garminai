@@ -1,4 +1,4 @@
-"""GarminAI Public v0.3: token-gated DEMO ONLY; not production OAuth."""
+"""GarminAI Public v0.5: token-gated DEMO ONLY; not production OAuth."""
 import os
 from contextlib import asynccontextmanager
 from starlette.applications import Starlette
@@ -8,6 +8,7 @@ from mcp.server.transport_security import TransportSecuritySettings
 
 from .server import mcp
 from .auth_gate import DemoBearerGate
+from .readiness import get_readiness
 
 hostname = os.environ.get("RENDER_EXTERNAL_HOSTNAME", "").strip()
 extra = os.environ.get("GARMINAI_ALLOWED_HOST", "").strip()
@@ -31,14 +32,21 @@ mcp.settings.transport_security = security
 mcp_asgi = mcp.streamable_http_app()
 
 async def health(_request):
-    return JSONResponse({"status":"ok", "version":"0.3.0", "mode":"DEMO_ONLY", "garmin_oauth":"NOT_CONNECTED", "auth":"DEMO_BEARER_GATE"})
+    return JSONResponse({"status":"ok", "version":"0.5.0", "mode":"DEMO_ONLY", "garmin_oauth":"NOT_CONNECTED", "auth":"DEMO_BEARER_GATE"})
 
 async def index(_request):
-    return JSONResponse({"project":"GarminAI Public", "version":"0.3.0", "mode":"DEMO_ONLY", "message":"Only fictional activity data. MCP endpoint: /mcp"})
+    return JSONResponse({"project":"GarminAI Public", "version":"0.5.0", "mode":"DEMO_ONLY", "message":"Only fictional activity data. MCP endpoint: /mcp"})
+
+async def integration_readiness(_request):
+    # Only configuration booleans; never values. Not an invitation to connect Garmin yet.
+    return JSONResponse(get_readiness(),headers={'cache-control':'no-store'})
+
+async def garmin_callback_disabled(_request):
+    return JSONResponse({'status':'not_enabled','reason':'Garmin OAuth is staged until durable user identity, encrypted token storage and consent controls are deployed'},status_code=503,headers={'cache-control':'no-store'})
 
 @asynccontextmanager
 async def lifespan(_app):
     async with mcp.session_manager.run():
         yield
 
-app = Starlette(routes=[Route("/", index), Route("/healthz", health), Mount("/", app=DemoBearerGate(mcp_asgi))], lifespan=lifespan)
+app = Starlette(routes=[Route("/", index), Route("/healthz", health), Route("/integration/readiness", integration_readiness), Route("/garmin/oauth/callback", garmin_callback_disabled), Mount("/", app=DemoBearerGate(mcp_asgi))], lifespan=lifespan)
