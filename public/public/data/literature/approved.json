@@ -1,0 +1,74 @@
+{
+  "version": 1,
+  "reviewed_at": "2026-11-11",
+  "sources": [
+    {
+      "id": "tid-2025",
+      "title": "Which Training Intensity Distribution Intervention will Produce the Greatest Improvements in Maximal Oxygen Uptake and Time-Trial Performance in Endurance Athletes?",
+      "year": 2025,
+      "url": "https://pubmed.ncbi.nlm.nih.gov/39888556/",
+      "topic": [
+        "intensity",
+        "5k",
+        "10k",
+        "half_marathon",
+        "marathon"
+      ],
+      "evidence": "systematic_review",
+      "note_sr": "U individualnoj meta-analizi nisu nađene univerzalne prednosti polarizovanog modela; nivo sportiste menja odgovor."
+    },
+    {
+      "id": "tid-2024",
+      "title": "Comparison of Polarized Versus Other Types of Endurance Training Intensity Distribution on Athletes’ Endurance Performance",
+      "year": 2024,
+      "url": "https://doi.org/10.1007/s40279-024-02034-z",
+      "topic": [
+        "intensity",
+        "endurance"
+      ],
+      "evidence": "systematic_review",
+      "note_sr": "Polarizovani model je bio povoljniji za VO2peak u nekim podgrupama, ali ne i univerzalno za sve performanse."
+    },
+    {
+      "id": "strength-2024",
+      "title": "Effect of Strength Training Programs in Middle- and Long-Distance Runners’ Economy at Different Running Speeds",
+      "year": 2024,
+      "url": "https://pubmed.ncbi.nlm.nih.gov/38165636/",
+      "topic": [
+        "strength",
+        "running_economy",
+        "5k",
+        "10k",
+        "half_marathon",
+        "marathon"
+      ],
+      "evidence": "systematic_review",
+      "note_sr": "Trening snage može poboljšati ekonomiju trčanja; efekat zavisi od metode i brzine."
+    },
+    {
+      "id": "injury-2022",
+      "title": "The Association Between Running Injuries and Training Parameters: A Systematic Review",
+      "year": 2022,
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC9528699/",
+      "topic": [
+        "load",
+        "injury",
+        "progression"
+      ],
+      "evidence": "systematic_review",
+      "note_sr": "Dokazi o treninzima i povredama su neujednačeni; univerzalno pravilo povećanja za 10% nije opravdano."
+    },
+    {
+      "id": "strength-2025",
+      "title": "The Effect of Strength Training on Endurance Performance Determinants in Middle- and Long-Distance Endurance Athletes: An Umbrella Review",
+      "year": 2025,
+      "url": "https://pubmed.ncbi.nlm.nih.gov/40153564/",
+      "topic": [
+        "strength",
+        "running_economy"
+      ],
+      "evidence": "umbrella_review",
+      "note_sr": "Pregledi nalaze koristi za ekonomiju trčanja, bez jasnog poboljšanja VO2max."
+    }
+  ]
+}
