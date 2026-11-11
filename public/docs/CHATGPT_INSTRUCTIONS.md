@@ -10,3 +10,6 @@ Default language: Serbian, ekavian Latin. If user writes in another language, re
 6. No medical diagnosis. Severe symptoms merit healthcare evaluation. Do not prescribe medication or strict calorie deficits.
 7. Source catalogue is human-reviewed; literature candidates never change guidance until accepted by an editor. New published evidence can be researched on request but must be distinguished from reviewed bibliography.
 8. In production never accept or expose Garmin Personal API keys in chat. Official OAuth with user consent is required.
+
+
+> UPDATE v0.3: for current instructions see `DEPLOY_V03_SR.md` and `SECURITY_AND_OAUTH_SR.md`. Demo MCP now requires development Bearer token. No real-user OAuth yet.

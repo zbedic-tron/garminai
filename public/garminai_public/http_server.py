@@ -1,7 +1,4 @@
-"""GarminAI Public v0.2: HTTPS-ready, *fictional demo data only*.
-
-No auth, tokens, Garmin credentials or athlete data. Do not use for real users.
-"""
+"""GarminAI Public v0.3: token-gated DEMO ONLY; not production OAuth."""
 import os
 from contextlib import asynccontextmanager
 from starlette.applications import Starlette
@@ -10,6 +7,7 @@ from starlette.routing import Route, Mount
 from mcp.server.transport_security import TransportSecuritySettings
 
 from .server import mcp
+from .auth_gate import DemoBearerGate
 
 hostname = os.environ.get("RENDER_EXTERNAL_HOSTNAME", "").strip()
 extra = os.environ.get("GARMINAI_ALLOWED_HOST", "").strip()
@@ -33,14 +31,14 @@ mcp.settings.transport_security = security
 mcp_asgi = mcp.streamable_http_app()
 
 async def health(_request):
-    return JSONResponse({"status":"ok", "version":"0.2.0", "mode":"DEMO_ONLY", "garmin_oauth":"NOT_CONNECTED", "auth":"NOT_IMPLEMENTED"})
+    return JSONResponse({"status":"ok", "version":"0.3.0", "mode":"DEMO_ONLY", "garmin_oauth":"NOT_CONNECTED", "auth":"DEMO_BEARER_GATE"})
 
 async def index(_request):
-    return JSONResponse({"project":"GarminAI Public", "version":"0.2.0", "mode":"DEMO_ONLY", "message":"Only fictional activity data. MCP endpoint: /mcp"})
+    return JSONResponse({"project":"GarminAI Public", "version":"0.3.0", "mode":"DEMO_ONLY", "message":"Only fictional activity data. MCP endpoint: /mcp"})
 
 @asynccontextmanager
 async def lifespan(_app):
     async with mcp.session_manager.run():
         yield
 
-app = Starlette(routes=[Route("/", index), Route("/healthz", health), Mount("/", app=mcp_asgi)], lifespan=lifespan)
+app = Starlette(routes=[Route("/", index), Route("/healthz", health), Mount("/", app=DemoBearerGate(mcp_asgi))], lifespan=lifespan)

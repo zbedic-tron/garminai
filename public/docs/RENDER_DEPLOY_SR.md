@@ -38,3 +38,6 @@ Dostupnost pravljenja prilagođenog MCP plugina u ChatGPT-u zavisi od plana i wo
 - Render Free se uspavljuje posle 15 min bez saobraćaja, ima promenljiv cold-start i efemerni disk. Nije produkciona infrastruktura.
 - Literaturu proširuj kontrolisano: komanda `python -m garminai_public.literature_admin --query "..."` predlaže metapodatke iz Crossref-a; studije se prihvataju isključivo posle stručne provere. Kandidati se ne objavljuju korisnicima automatski.
 - Proveru zahteva, potpune MCP komunikacije i javnog Render deploy-a treba izvršiti nakon postavljanja. Paket nije već postavljen na hosting.
+
+
+> UPDATE v0.3: for current instructions see `DEPLOY_V03_SR.md` and `SECURITY_AND_OAUTH_SR.md`. Demo MCP now requires development Bearer token. No real-user OAuth yet.

@@ -11,3 +11,5 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.8
+      # For EXISTING Blueprints, configure manually in Render Dashboard.
+      # Do not commit the token or its SHA-256 digest to GitHub.

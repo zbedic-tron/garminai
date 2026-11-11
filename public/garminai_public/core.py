@@ -41,9 +41,11 @@ def weekly_summary(start_date=None,end_date=None):
     return {'mode':'DEMO_ONLY','weeks':dict(sorted(weeks.items())),'warning_sr':'Oporavak i intenzitet se ne mogu pouzdano odrediti samo iz prosečnog pulsa.'}
 
 def literature(topic=None,limit=20):
+    from .literature_search import rank_sources
     items=_read('literature/approved.json')['sources']
-    if topic:items=[x for x in items if topic.lower() in [y.lower() for y in x['topic']]]
-    return {'catalog':'reviewed','count':len(items),'sources':items[:max(1,min(int(limit),50))]}
+    ranked=rank_sources(items, topic or '', limit)
+    return {'catalog':'reviewed','count':len(ranked),'sources':ranked,
+            'review_policy':'Only manually approved references; no auto-promoted candidates.'}
 
 def guidance(distance='10k', language='sr'):
     key=distance.lower().replace(' ','')

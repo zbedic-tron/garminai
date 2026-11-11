@@ -1,29 +1,14 @@
-# GarminAI Public v0.2 — DEMO HTTPS MCP + literatura
+# GarminAI Public v0.3 — DEMO MCP (zaštićen razvojni pristup)
 
-**NOT PRODUCTION. Fictional data only. No Garmin connection, no user authentication, no real athlete data.**
+**DEMO ONLY. Bez stvarnih Garmin podataka. NIJE spremno za javne korisnike.**
 
-This remains independent of GarminAI Windows; do not copy any Windows files, private tokens or athlete exports here.
+- Python MCP server, Render Streamable HTTP `/mcp`, `/healthz`.
+- `GARMINAI_DEMO_TOKEN_SHA256` environment variable obavezan za MCP; bez njega 503, bez validnog Bearer tokena 401.
+- Token je samo zajednička razvojna lozinka, ne korisnička autentifikacija ili Garmin OAuth.
+- Šest demo MCP alatki, rangirana ručno odobrena literatura, predlozi novih radova sa obaveznom proverom.
+- Primer izolacije po identitetu u `tenant_store.py` nije povezan sa javnim serverom i ne čuva stvarne aktivnosti.
+- Pokrenuti testove: `pip install -r requirements.txt pytest` pa `pytest -q` iz `public/`.
 
-## Included
+**Uputstva:** `docs/DEPLOY_V03_SR.md`, `docs/SECURITY_AND_OAUTH_SR.md`, `docs/LITERATURE_V03_SR.md`.
 
-- Six existing read-only MCP tools from v0.1 (`garminai_public/server.py`).
-- New ASGI deployment in `garminai_public/http_server.py`, with `/healthz`, `/`, and `/mcp`.
-- Render blueprint at repository root (`render.yaml`) and Serbian deployment guide `docs/RENDER_DEPLOY_SR.md`.
-- Domain-specific Host/Origin allowlisting using Render's `RENDER_EXTERNAL_HOSTNAME`.
-- Five manually approved research references in `data/literature/approved.json`; optional Crossref candidate metadata workflow (manual review required).
-
-## Local checks
-
-From `public/`:
-
-```bash
-python -m pip install -r requirements.txt
-python -m unittest discover -s tests -v
-uvicorn garminai_public.http_server:app --host 127.0.0.1 --port 8000
-```
-
-Visit http://127.0.0.1:8000/healthz. Remote URL after Render deploy: `https://YOUR-RENDER-HOST.onrender.com/mcp`.
-
-## Critical guardrail
-
-The public demo is *intentionally not authenticated*. All tools must continue to return **only fictional activities and public bibliography**. Adding real Garmin data requires a separate approved OAuth, authenticated MCP, user-level authorization checks, secure storage and a privacy/security review. Render Free is only for testing.
+Nikad ne postavljati privatni GarminAI Windows, lične FIT/JSON arhive ili tajne na ovaj repozitorijum.
