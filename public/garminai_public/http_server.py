@@ -1,4 +1,4 @@
-"""GarminAI Public v0.8.0: token-gated DEMO ONLY; not production OAuth."""
+"""GarminAI Public v0.8.1: token-gated DEMO ONLY; not production OAuth."""
 import os
 from contextlib import asynccontextmanager
 from starlette.applications import Starlette
@@ -11,6 +11,7 @@ from .auth_gate import DemoBearerGate
 from .readiness import get_readiness
 from .db_readiness import db_configuration_status
 from .db_check import startup_report
+from .oauth_provider_compat import deployment_requirements
 
 hostname = os.environ.get("RENDER_EXTERNAL_HOSTNAME", "").strip()
 extra = os.environ.get("GARMINAI_ALLOWED_HOST", "").strip()
@@ -34,14 +35,18 @@ mcp.settings.transport_security = security
 mcp_asgi = mcp.streamable_http_app()
 
 async def health(_request):
-    return JSONResponse({"status":"ok", "version":"0.8.0", "mode":"DEMO_ONLY", "garmin_oauth":"NOT_CONNECTED", "auth":"DEMO_BEARER_GATE"})
+    return JSONResponse({"status":"ok", "version":"0.8.1", "mode":"DEMO_ONLY", "garmin_oauth":"NOT_CONNECTED", "auth":"DEMO_BEARER_GATE"})
 
 async def index(_request):
-    return JSONResponse({"project":"GarminAI Public", "version":"0.8.0", "mode":"DEMO_ONLY", "message":"Only fictional activity data. MCP endpoint: /mcp"})
+    return JSONResponse({"project":"GarminAI Public", "version":"0.8.1", "mode":"DEMO_ONLY", "message":"Only fictional activity data. MCP endpoint: /mcp"})
 
 async def integration_readiness(_request):
     # Only configuration booleans; never values. Not an invitation to connect Garmin yet.
     return JSONResponse({**get_readiness(), **db_configuration_status()},headers={'cache-control':'no-store'})
+
+async def oauth_development_status(_request):
+    # Static non-sensitive contract; never a promise that user login is enabled.
+    return JSONResponse(deployment_requirements(), headers={'cache-control': 'no-store'})
 
 async def garmin_callback_disabled(_request):
     return JSONResponse({'status':'not_enabled','reason':'Garmin OAuth is staged until durable user identity, encrypted token storage and consent controls are deployed'},status_code=503,headers={'cache-control':'no-store'})
@@ -55,4 +60,4 @@ async def lifespan(_app):
     async with mcp.session_manager.run():
         yield
 
-app = Starlette(routes=[Route("/", index), Route("/healthz", health), Route("/integration/readiness", integration_readiness), Route("/garmin/oauth/callback", garmin_callback_disabled), Mount("/", app=DemoBearerGate(mcp_asgi))], lifespan=lifespan)
+app = Starlette(routes=[Route("/", index), Route("/healthz", health), Route("/integration/readiness", integration_readiness), Route("/auth/development-status", oauth_development_status), Route("/garmin/oauth/callback", garmin_callback_disabled), Mount("/", app=DemoBearerGate(mcp_asgi))], lifespan=lifespan)
