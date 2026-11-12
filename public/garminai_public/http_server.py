@@ -1,4 +1,4 @@
-"""GarminAI Public v0.7: token-gated DEMO ONLY; not production OAuth."""
+"""GarminAI Public v0.7.1: token-gated DEMO ONLY; not production OAuth."""
 import os
 from contextlib import asynccontextmanager
 from starlette.applications import Starlette
@@ -34,10 +34,10 @@ mcp.settings.transport_security = security
 mcp_asgi = mcp.streamable_http_app()
 
 async def health(_request):
-    return JSONResponse({"status":"ok", "version":"0.7.0", "mode":"DEMO_ONLY", "garmin_oauth":"NOT_CONNECTED", "auth":"DEMO_BEARER_GATE"})
+    return JSONResponse({"status":"ok", "version":"0.7.1", "mode":"DEMO_ONLY", "garmin_oauth":"NOT_CONNECTED", "auth":"DEMO_BEARER_GATE"})
 
 async def index(_request):
-    return JSONResponse({"project":"GarminAI Public", "version":"0.7.0", "mode":"DEMO_ONLY", "message":"Only fictional activity data. MCP endpoint: /mcp"})
+    return JSONResponse({"project":"GarminAI Public", "version":"0.7.1", "mode":"DEMO_ONLY", "message":"Only fictional activity data. MCP endpoint: /mcp"})
 
 async def integration_readiness(_request):
     # Only configuration booleans; never values. Not an invitation to connect Garmin yet.

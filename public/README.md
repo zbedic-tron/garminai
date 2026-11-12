@@ -44,3 +44,12 @@ See `docs/V04_SECURITY_SR.md` for boundaries and next implementation steps.
 
 
 **v0.7:** Staged OAuth pending-attempt persistence (`garminai_public/oauth_pending.py`) and optional Neon migration `sql/002_oauth_pending.sql`. No live Garmin credentials or user authentication. See `docs/V07_OAUTH_STAGING_SR.md`.
+
+### v0.7.1 — OAuth identity-binding staging
+
+`garminai_public.oauth_binding.IdentityBoundGarminFlow` adds a verified-user
+boundary around the already durable, single-use OAuth `state` and PKCE
+verifier. It is deliberately **not wired to a public endpoint**. The Garmin
+callback still returns 503 until a production-grade identity provider and
+user session, encrypted token persistence, and consent management exist.
+No changes to Garmin account credentials or private Windows GarminAI.
