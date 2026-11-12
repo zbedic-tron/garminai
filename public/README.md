@@ -1,4 +1,4 @@
-# GarminAI Public v0.6 — PostgreSQL / User Isolation Staging
+# GarminAI Public v0.7 — PostgreSQL / User Isolation Staging
 
 **DEMO ONLY:** Garmin OAuth login, actual Garmin Activity API push intake, ChatGPT
 per-user authentication and AI analysis with real data are **NOT enabled**.
@@ -41,3 +41,6 @@ The public server has no real users or Garmin integration.
 Testing: `python -m pip install -r requirements.txt pytest` then `python -m pytest -q` from `public/`.
 Deployment: root `render.yaml` points at `public/`. Set `GARMINAI_DEMO_TOKEN_SHA256` only in Render Environment.
 See `docs/V04_SECURITY_SR.md` for boundaries and next implementation steps.
+
+
+**v0.7:** Staged OAuth pending-attempt persistence (`garminai_public/oauth_pending.py`) and optional Neon migration `sql/002_oauth_pending.sql`. No live Garmin credentials or user authentication. See `docs/V07_OAUTH_STAGING_SR.md`.

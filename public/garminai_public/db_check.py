@@ -9,6 +9,8 @@ from .postgres_store import validate_database_url
 
 TABLES = frozenset({'athletes', 'activities', 'garmin_credentials', 'ai_consent'})
 POLICIES = frozenset({'athletes_owner', 'activities_owner', 'credentials_owner', 'consent_owner'})
+OPTIONAL_TABLES = frozenset({'oauth_attempts'})
+OPTIONAL_POLICIES = frozenset({'oauth_attempts_owner'})
 
 @dataclass(frozen=True)
 class CheckResult:
@@ -50,14 +52,14 @@ def check_database(database_url=None, *, connection_factory=None):
                                JOIN pg_namespace n ON n.oid = c.relnamespace
                                WHERE n.nspname = 'garminai' AND c.relkind = 'r' ''')
                 rows = cur.fetchall()
-                if len(rows) != len(TABLES) or {r[0] for r in rows} != TABLES:
+                if not TABLES.issubset({r[0] for r in rows}) or not {r[0] for r in rows}.issubset(TABLES | OPTIONAL_TABLES):
                     return CheckResult(False, 'SCHEMA_MISMATCH')
                 if any(not r[1] or not r[2] for r in rows):
                     return CheckResult(False, 'RLS_DISABLED')
                 cur.execute('''SELECT policyname, cmd FROM pg_policies
                                WHERE schemaname = 'garminai' ''')
                 policies = cur.fetchall()
-                if not POLICIES.issubset({r[0] for r in policies}) or any(
+                if not (POLICIES | (OPTIONAL_POLICIES if 'oauth_attempts' in {r[0] for r in rows} else set())).issubset({r[0] for r in policies}) or any(
                     cmd != 'ALL' for name, cmd in policies if name in POLICIES
                 ):
                     return CheckResult(False, 'POLICY_MISMATCH')
@@ -65,7 +67,7 @@ def check_database(database_url=None, *, connection_factory=None):
                          has_table_privilege(current_user, format('garminai.%I', tablename), 'SELECT')
                          FROM pg_tables WHERE schemaname = 'garminai' ''')
                 privs = cur.fetchall()
-                if len(privs) != len(TABLES) or any(not granted for _, granted in privs):
+                if {t for t,_ in privs} != {r[0] for r in rows} or any(not granted for _, granted in privs):
                     return CheckResult(False, 'MISSING_PRIVILEGES')
         return CheckResult(True, 'OK')
     except Exception:
