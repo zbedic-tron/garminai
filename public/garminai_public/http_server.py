@@ -10,6 +10,7 @@ from .server import mcp
 from .auth_gate import DemoBearerGate
 from .readiness import get_readiness
 from .db_readiness import db_configuration_status
+from .db_check import startup_report
 
 hostname = os.environ.get("RENDER_EXTERNAL_HOSTNAME", "").strip()
 extra = os.environ.get("GARMINAI_ALLOWED_HOST", "").strip()
@@ -33,10 +34,10 @@ mcp.settings.transport_security = security
 mcp_asgi = mcp.streamable_http_app()
 
 async def health(_request):
-    return JSONResponse({"status":"ok", "version":"0.6.0", "mode":"DEMO_ONLY", "garmin_oauth":"NOT_CONNECTED", "auth":"DEMO_BEARER_GATE"})
+    return JSONResponse({"status":"ok", "version":"0.6.1", "mode":"DEMO_ONLY", "garmin_oauth":"NOT_CONNECTED", "auth":"DEMO_BEARER_GATE"})
 
 async def index(_request):
-    return JSONResponse({"project":"GarminAI Public", "version":"0.6.0", "mode":"DEMO_ONLY", "message":"Only fictional activity data. MCP endpoint: /mcp"})
+    return JSONResponse({"project":"GarminAI Public", "version":"0.6.1", "mode":"DEMO_ONLY", "message":"Only fictional activity data. MCP endpoint: /mcp"})
 
 async def integration_readiness(_request):
     # Only configuration booleans; never values. Not an invitation to connect Garmin yet.
@@ -47,6 +48,10 @@ async def garmin_callback_disabled(_request):
 
 @asynccontextmanager
 async def lifespan(_app):
+    # Operator-only diagnostic in Render Logs; no new public DB endpoint.
+    # No Garmin OAuth or real-user processing is enabled by this check.
+    if os.environ.get("GARMINAI_DB_CHECK_ON_START", "1") == "1":
+        startup_report()
     async with mcp.session_manager.run():
         yield
 
