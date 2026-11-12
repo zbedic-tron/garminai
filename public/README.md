@@ -53,3 +53,9 @@ verifier. It is deliberately **not wired to a public endpoint**. The Garmin
 callback still returns 503 until a production-grade identity provider and
 user session, encrypted token persistence, and consent management exist.
 No changes to Garmin account credentials or private Windows GarminAI.
+
+## v0.8.0 (MCP identity verification — staging)
+
+Added offline RS256 JWT verification contract and tests. **Not wired into `/mcp`**;
+existing development bearer gate and fictional activities remain unchanged.
+See `docs/V08_MCP_IDENTITY_SR.md`.
