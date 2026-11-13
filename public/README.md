@@ -1,3 +1,7 @@
+## GarminAI Public v0.8.4 — izolovani Neon Google Login POC (2026-11-13)
+
+Staging-only, opcioni eksperiment sa Neon Better Auth grane `auth-staging`, pod putanjom `/auth/staging/google`. Ne autentifikuje MCP, ne autorizuje Garmin i nema stvarnih aktivnosti. Tek posle zasebnog, bezbednog testiranja implementira se kompletna prijava zvaničnim Neon SDK-om. Uputstvo: `docs/V084_AUTH_STAGING_POC_SR.md`.
+
 ## GarminAI Public v0.8.3 — Neon Auth Connectivity Staging (2026-11-13)
 
 - Render MCP stays `DEMO_ONLY` with six fictional-data tools. Live Garmin OAuth and MCP OAuth **are not enabled**.
