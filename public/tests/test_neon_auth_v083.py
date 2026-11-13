@@ -51,7 +51,7 @@ class NeonAuthProbeTests(unittest.TestCase):
     def test_health_version_in_source(self):
         from pathlib import Path
         source = (Path(__file__).resolve().parents[1] / 'garminai_public' / 'http_server.py').read_text()
-        self.assertIn('\"version\":\"0.8.4\"', source)
+        self.assertIn('\"version\":\"0.8.4.1\"', source)
     def test_status_remains_fail_closed(self):
         from garminai_public.oauth_provider_compat import deployment_requirements
         report = deployment_requirements()

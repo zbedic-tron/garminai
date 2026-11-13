@@ -91,8 +91,7 @@ async def staging_login(request):
 
 
 _JS = r'''"use strict";
-// Short-lived experiment: no SDK alternative is claimed, no tokens accepted by GarminAI.
-// The request format follows Better Auth's documented /sign-in/social endpoint.
+// Staging only. No MCP or Garmin access; diagnostics never display secrets.
 (() => {
   const root = document.querySelector("main[data-neon-auth]");
   const base = root?.dataset.neonAuth;
@@ -100,14 +99,27 @@ _JS = r'''"use strict";
   const buttons = ["signin", "check", "signout"].map(x => document.getElementById(x));
   if (!base || !status || buttons.some(x => !x)) return;
   const setStatus = s => { status.textContent = s; };
+  const safeErrorCode = e => {
+    // NEVER show arbitrary API messages, tokens, URLs or credentials.
+    if (e instanceof TypeError) return "NETWORK_OR_CORS";
+    return (e && /^HTTP_[0-9]{3}$|^INVALID_RESPONSE$|^INVALID_DESTINATION$|^UNEXPECTED_REDIRECT$/.test(e.message))
+      ? e.message : "UNEXPECTED_ERROR";
+  };
   async function call(path, init={}) {
-    const result = await fetch(base + path, {
-      method: init.method || "GET", credentials:"include", mode:"cors",
-      redirect:"manual", cache:"no-store", headers:{"Accept":"application/json", ...(init.headers || {})},
-      ...(init.body ? {body:init.body} : {})
-    });
-    if (!result.ok) throw Error("Neon returned an unsuccessful response.");
-    return result.json();
+    let result;
+    try {
+      result = await fetch(base + path, {
+        method: init.method || "GET", credentials:"include", mode:"cors",
+        // Better Auth's disableRedirect:true must return a JSON authorize URL.
+        // Any HTTP redirect here is unexpected and must not be followed by fetch.
+        redirect:"error", cache:"no-store",
+        headers:{"Accept":"application/json", ...(init.headers || {})},
+        ...(init.body ? {body:init.body} : {})
+      });
+    } catch (e) { throw new TypeError("network or browser policy"); }
+    if (!result.ok) throw Error("HTTP_" + String(result.status).padStart(3, "0"));
+    try { return await result.json(); }
+    catch { throw Error("INVALID_RESPONSE"); }
   }
   buttons[0].addEventListener("click", async () => {
     setStatus("Starting Google sign-in…");
@@ -115,16 +127,19 @@ _JS = r'''"use strict";
     try {
       const callbackURL = location.origin + location.pathname;
       const result = await call("/sign-in/social", {method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({provider:"google",callbackURL})});
+        body:JSON.stringify({provider:"google",callbackURL,disableRedirect:true})});
       const dest = result.url || result.data?.url;
-      if (typeof dest !== "string") throw Error("No authorization destination returned.");
-      const u = new URL(dest);
-      if (u.protocol !== "https:" || !["accounts.google.com", "accounts.google.co.uk"].includes(u.hostname)) {
-        throw Error("Unexpected redirect destination; refusing navigation.");
+      if (typeof dest !== "string") throw Error("INVALID_RESPONSE");
+      let u;
+      try { u = new URL(dest); } catch { throw Error("INVALID_DESTINATION"); }
+      if (u.protocol !== "https:" || u.hostname !== "accounts.google.com") {
+        throw Error("INVALID_DESTINATION");
       }
+      // Only navigate to the known Google Accounts origin, never arbitrary URLs.
       location.assign(dest);
-    } catch {
-      setStatus("Google sign-in could not start. Check staging settings and browser third-party cookie restrictions.");
+    } catch (e) {
+      setStatus("Sign-in start failed [" + safeErrorCode(e) + "]. No session was accepted. " +
+        "If it repeats, open F12 > Network and check only the status of sign-in/social; do not share tokens or full URLs.");
       buttons.forEach(b => b.disabled = false);
     }
   });
@@ -134,13 +149,13 @@ _JS = r'''"use strict";
       const result = await call("/get-session");
       const user = result.user || result.data?.user;
       setStatus(user?.id ? "Neon reports a signed-in test session. Not authorized for MCP." : "No active Neon session found in this browser.");
-    } catch { setStatus("Session check failed. No identity was accepted."); }
+    } catch (e) { setStatus("Session check failed [" + safeErrorCode(e) + "]. No identity was accepted."); }
   });
   buttons[2].addEventListener("click", async () => {
     try {
       await call("/sign-out",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"});
       setStatus("Signed out from the test session.");
-    } catch { setStatus("Sign-out could not be confirmed. Check Neon directly."); }
+    } catch (e) { setStatus("Sign-out could not be confirmed [" + safeErrorCode(e) + "]."); }
   });
   if (location.search) history.replaceState(null,"",location.pathname);
 })();
