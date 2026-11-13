@@ -1,4 +1,4 @@
-"""v0.8.4: isolated, opt-in Neon Auth browser-only Google sign-in experiment.
+"""v0.8.4.2: isolated, opt-in Neon Auth browser-only Google sign-in experiment.
 
 This page does NOT authenticate to GarminAI MCP. It does not relay or process
 user tokens and does not change any production setting. Neon handles credentials.
@@ -132,11 +132,22 @@ _JS = r'''"use strict";
       if (typeof dest !== "string") throw Error("INVALID_RESPONSE");
       let u;
       try { u = new URL(dest); } catch { throw Error("INVALID_DESTINATION"); }
-      if (u.protocol !== "https:" || u.hostname !== "accounts.google.com") {
-        throw Error("INVALID_DESTINATION");
-      }
-      // Only navigate to the known Google Accounts origin, never arbitrary URLs.
-      location.assign(dest);
+      // Neon Managed Auth may return its own short-lived /sign-in/social/init
+      // continuation URL instead of a direct accounts.google.com URL.
+      // Accept only the configured staging issuer's exact path, never a
+      // redirect host chosen by the server response or a user-controlled URL.
+      const authBase = new URL(base);
+      const neonInit =
+        u.protocol === "https:" && u.origin === authBase.origin &&
+        u.pathname === authBase.pathname + "/sign-in/social/init" &&
+        !u.hash && u.searchParams.size === 1 &&
+        /^[A-Za-z0-9_-]{16,256}$/.test(u.searchParams.get("token") || "");
+      const googleAuthorize =
+        u.protocol === "https:" && u.origin === "https://accounts.google.com" &&
+        ["/o/oauth2/v2/auth", "/o/oauth2/auth"].includes(u.pathname) && !u.hash;
+      if (!neonInit && !googleAuthorize) throw Error("INVALID_DESTINATION");
+      // No token is displayed, logged or stored by this page.
+      location.assign(u.href);
     } catch (e) {
       setStatus("Sign-in start failed [" + safeErrorCode(e) + "]. No session was accepted. " +
         "If it repeats, open F12 > Network and check only the status of sign-in/social; do not share tokens or full URLs.");

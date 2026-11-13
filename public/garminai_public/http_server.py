@@ -1,4 +1,4 @@
-"""GarminAI Public v0.8.4.1: token-gated DEMO ONLY; not production OAuth."""
+"""GarminAI Public v0.8.4.2: token-gated DEMO ONLY; not production OAuth."""
 import os
 from contextlib import asynccontextmanager
 from starlette.applications import Starlette
