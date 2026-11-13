@@ -33,7 +33,7 @@ def test_null_session_is_not_network_error():
 def test_missing_production_authorization_and_fixed_version():
     source = Path(__file__).resolve().parents[1] / 'garminai_public' / 'http_server.py'
     text = source.read_text()
-    assert text.count('"version":"0.8.4.3"') == 2
+    assert text.count('"version":"0.8.5"') == 2
     assert '"version":"0.8.4.1"' not in text
     assert 'DEMO_ONLY' in text
     assert 'DemoBearerGate' in text

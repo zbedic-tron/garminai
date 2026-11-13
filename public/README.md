@@ -74,3 +74,11 @@ No changes to Garmin account credentials or private Windows GarminAI.
 Added offline RS256 JWT verification contract and tests. **Not wired into `/mcp`**;
 existing development bearer gate and fictional activities remain unchanged.
 See `docs/V08_MCP_IDENTITY_SR.md`.
+
+## v0.8.5 — OAuth Resource Staging (nije produkciona autentifikacija)
+
+Nova zasebna provera `GET /auth/mcp-oauth/status`; izdavanje metapodataka
+staging resursa i `401` izazov su **isključeni** dok ne završimo validaciju
+Neon OAuth Providera i pristanka. Postojeći demo `/mcp` nije menjan.
+Detaljna uputstva: `docs/V085_MCP_OAUTH_STAGING_SR.md` i
+korenska datoteka `V085_START_HERE_SR.md` u ZIP paketu.

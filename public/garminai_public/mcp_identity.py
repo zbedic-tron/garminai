@@ -70,7 +70,7 @@ class MCPAccessTokenVerifier:
             raise ValueError('No allowed asymmetric signing keys')
         self._keys = keys
 
-    def verify(self, bearer: str) -> VerifiedMCPIdentity:
+    def verify(self, bearer: str, *, required_scopes: tuple[str, ...] = ()) -> VerifiedMCPIdentity:
         if not isinstance(bearer, str) or not 32 <= len(bearer) <= 8192:
             raise UntrustedAccessToken('Invalid access token')
         try:
@@ -85,6 +85,18 @@ class MCPAccessTokenVerifier:
                 issuer=self.issuer, leeway=self.skew,
                 options={'require': ['iss', 'sub', 'aud', 'exp', 'iat'], 'verify_nbf': True},
             )
+            # Resource permissions are taken ONLY from the verified JWT payload,
+            # never from request parameters or model-supplied tool arguments.
+            if required_scopes:
+                scope_value = claims.get('scope')
+                if isinstance(scope_value, str):
+                    granted = set(scope_value.split())
+                elif isinstance(scope_value, list) and all(isinstance(s, str) for s in scope_value):
+                    granted = set(scope_value)
+                else:
+                    raise UntrustedAccessToken('Invalid access token')
+                if not all(s in granted for s in required_scopes):
+                    raise UntrustedAccessToken('Invalid access token')
             sub = claims.get('sub')
             if not isinstance(sub, str) or not 1 <= len(sub) <= 256 or any(ord(c) < 33 for c in sub):
                 raise UntrustedAccessToken('Invalid access token')

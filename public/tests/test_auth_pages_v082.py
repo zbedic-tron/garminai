@@ -33,7 +33,7 @@ class AuthPagesTests(unittest.TestCase):
 
     def test_readiness_fail_closed(self):
         state = deployment_requirements()
-        self.assertEqual(state['version'], '0.8.4')
+        self.assertEqual(state['version'], '0.8.5')
         self.assertTrue(state['staging_login_page_available'])
         self.assertFalse(state['consent_submission_enabled'])
         self.assertFalse(state['mcp_oauth_enabled'])
