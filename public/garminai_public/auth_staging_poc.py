@@ -1,8 +1,8 @@
-"""v0.8.4.2: isolated, opt-in Neon Auth browser-only Google sign-in experiment.
+"""v0.8.4.3: isolated, opt-in Neon Auth browser-only Google sign-in experiment.
 
 This page does NOT authenticate to GarminAI MCP. It does not relay or process
 user tokens and does not change any production setting. Neon handles credentials.
-Cross-site browser cookies may prevent the experiment from working in some browsers.
+The one-time verifier exchange still depends on the Neon session protocol and browser cookie policy.
 """
 import os
 from html import escape
@@ -80,7 +80,7 @@ async def staging_login(request):
 <body><main data-neon-auth="{auth_url}"><div class="brand">GARMINAI PUBLIC · AUTH STAGING</div>
 <h1>Google sign-in test</h1><p class="notice">{escape(explanation)}</p>
 <p>Only use a test account. The result is browser-level Neon authentication, not proof of GarminAI server authorization.</p>
-{actions}<footer>No Garmin data, MCP access tokens or developer credentials are enabled here. Cross-site browser cookie restrictions may prevent session persistence.</footer></main></body></html>'''
+{actions}<footer>No Garmin data, MCP access tokens or developer credentials are enabled here. No real Garmin data or MCP permissions are available on this test page.</footer></main></body></html>'''
     headers = {
         "Cache-Control": "no-store, max-age=0", "Pragma": "no-cache",
         "Referrer-Policy": "no-referrer", "X-Content-Type-Options": "nosniff",
@@ -91,87 +91,161 @@ async def staging_login(request):
 
 
 _JS = r'''"use strict";
-// Staging only. No MCP or Garmin access; diagnostics never display secrets.
+// v0.8.4.3: browser-only staging proof of concept. No MCP or Garmin access.
+// Neon Managed Auth returns an OAuth session verifier to the callback URL.
+// A single /get-session request must exchange it before regular cookie checks.
 (() => {
   const root = document.querySelector("main[data-neon-auth]");
   const base = root?.dataset.neonAuth;
   const status = document.getElementById("status");
   const buttons = ["signin", "check", "signout"].map(x => document.getElementById(x));
   if (!base || !status || buttons.some(x => !x)) return;
-  const setStatus = s => { status.textContent = s; };
+  const setStatus = value => { status.textContent = value; };
+  const PENDING_KEY = "garminai.auth-staging.google.pending.v1";
+  const MAX_PENDING_MS = 10 * 60 * 1000;
+  let wasExchanged = false;
+
   const safeErrorCode = e => {
-    // NEVER show arbitrary API messages, tokens, URLs or credentials.
-    if (e instanceof TypeError) return "NETWORK_OR_CORS";
-    return (e && /^HTTP_[0-9]{3}$|^INVALID_RESPONSE$|^INVALID_DESTINATION$|^UNEXPECTED_REDIRECT$/.test(e.message))
-      ? e.message : "UNEXPECTED_ERROR";
+    if (e instanceof TypeError) return "NETWORK_OR_BROWSER_POLICY";
+    const code = e?.message || "";
+    return /^(HTTP_[0-9]{3}|INVALID_RESPONSE|INVALID_DESTINATION|BROWSER_STORAGE_UNAVAILABLE)$/.test(code)
+      ? code : "UNEXPECTED_ERROR";
   };
+  const clearPending = () => { try { sessionStorage.removeItem(PENDING_KEY); } catch (_) {} };
+
+  // Read the one-time verifier BEFORE removing the sensitive query string.
+  // Never put the verifier in DOM, console, analytics, storage or an MCP request.
+  const callbackParams = new URLSearchParams(location.search);
+  const verifier = callbackParams.get("neon_auth_session_verifier");
+  const callbackHasVerifier = callbackParams.has("neon_auth_session_verifier");
+  const validVerifier = typeof verifier === "string" &&
+    /^[A-Za-z0-9._~-]{16,2048}$/.test(verifier) &&
+    callbackParams.getAll("neon_auth_session_verifier").length === 1;
+  // Explicit no-referrer policy is also set on the HTML response.
+  if (location.search) history.replaceState(history.state, "", location.pathname + location.hash);
+
   async function call(path, init={}) {
-    let result;
+    let response;
     try {
-      result = await fetch(base + path, {
-        method: init.method || "GET", credentials:"include", mode:"cors",
-        // Better Auth's disableRedirect:true must return a JSON authorize URL.
-        // Any HTTP redirect here is unexpected and must not be followed by fetch.
-        redirect:"error", cache:"no-store",
-        headers:{"Accept":"application/json", ...(init.headers || {})},
-        ...(init.body ? {body:init.body} : {})
+      response = await fetch(base + path, {
+        method: init.method || "GET", credentials: "include", mode: "cors",
+        redirect: "error", cache: "no-store",
+        headers: {"Accept": "application/json", ...(init.headers || {})},
+        ...(init.body ? {body: init.body} : {})
       });
-    } catch (e) { throw new TypeError("network or browser policy"); }
-    if (!result.ok) throw Error("HTTP_" + String(result.status).padStart(3, "0"));
-    try { return await result.json(); }
-    catch { throw Error("INVALID_RESPONSE"); }
+    } catch (_) { throw new TypeError("network or browser policy"); }
+    if (!response.ok) throw Error("HTTP_" + String(response.status).padStart(3, "0"));
+    try { return await response.json(); }
+    catch (_) { throw Error("INVALID_RESPONSE"); }
   }
+
+  function isValidSession(result) {
+    // A 200 response with JSON null is NOT a network or CORS error.
+    const user = result?.user ?? result?.data?.user;
+    const session = result?.session ?? result?.data?.session;
+    return typeof user?.id === "string" && user.id.length > 0 &&
+      session !== null && typeof session === "object";
+  }
+
+  async function checkSession(oneTimeVerifier) {
+    const path = oneTimeVerifier
+      ? "/get-session?neon_auth_session_verifier=" + encodeURIComponent(oneTimeVerifier)
+      : "/get-session";
+    return isValidSession(await call(path));
+  }
+
+  async function handleOAuthReturn() {
+    if (!callbackHasVerifier) return;
+    // Fail closed if a callback is injected without a recent sign-in attempt
+    // from this same tab. The staging page does not trust arbitrary URL params.
+    let pending = null;
+    try { pending = sessionStorage.getItem(PENDING_KEY); }
+    catch (_) { setStatus("Login callback cannot be verified [BROWSER_STORAGE_UNAVAILABLE]."); return; }
+    clearPending();
+    const timestamp = Number(pending);
+    if (!Number.isFinite(timestamp) || timestamp <= 0 ||
+        Date.now() < timestamp || Date.now() - timestamp > MAX_PENDING_MS) {
+      setStatus("Unexpected or expired login callback; start a new Google sign-in.");
+      return;
+    }
+    if (!validVerifier) {
+      setStatus("Login callback was not in the expected format.");
+      return;
+    }
+    setStatus("Finalizing Neon OAuth session…");
+    buttons.forEach(b => b.disabled = true);
+    try {
+      wasExchanged = await checkSession(verifier);
+      setStatus(wasExchanged
+        ? "Neon session verified after Google login (staging only; no MCP access)."
+        : "OAuth callback received, but Neon did not establish a session.");
+    } catch (error) {
+      setStatus("Neon session exchange failed [" + safeErrorCode(error) + "].");
+    } finally { buttons.forEach(b => b.disabled = false); }
+  }
+
   buttons[0].addEventListener("click", async () => {
     setStatus("Starting Google sign-in…");
     buttons.forEach(b => b.disabled = true);
     try {
       const callbackURL = location.origin + location.pathname;
-      const result = await call("/sign-in/social", {method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({provider:"google",callbackURL,disableRedirect:true})});
-      const dest = result.url || result.data?.url;
+      const result = await call("/sign-in/social", {
+        method: "POST", headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({provider: "google", callbackURL, disableRedirect: true})
+      });
+      const dest = result?.url ?? result?.data?.url;
       if (typeof dest !== "string") throw Error("INVALID_RESPONSE");
-      let u;
-      try { u = new URL(dest); } catch { throw Error("INVALID_DESTINATION"); }
-      // Neon Managed Auth may return its own short-lived /sign-in/social/init
-      // continuation URL instead of a direct accounts.google.com URL.
-      // Accept only the configured staging issuer's exact path, never a
-      // redirect host chosen by the server response or a user-controlled URL.
+      let next;
+      try { next = new URL(dest); }
+      catch (_) { throw Error("INVALID_DESTINATION"); }
       const authBase = new URL(base);
-      const neonInit =
-        u.protocol === "https:" && u.origin === authBase.origin &&
-        u.pathname === authBase.pathname + "/sign-in/social/init" &&
-        !u.hash && u.searchParams.size === 1 &&
-        /^[A-Za-z0-9_-]{16,256}$/.test(u.searchParams.get("token") || "");
-      const googleAuthorize =
-        u.protocol === "https:" && u.origin === "https://accounts.google.com" &&
-        ["/o/oauth2/v2/auth", "/o/oauth2/auth"].includes(u.pathname) && !u.hash;
+      const neonInit = next.protocol === "https:" && next.origin === authBase.origin &&
+        next.pathname === authBase.pathname + "/sign-in/social/init" &&
+        !next.hash && next.searchParams.size === 1 &&
+        /^[A-Za-z0-9_-]{16,256}$/.test(next.searchParams.get("token") || "");
+      const googleAuthorize = next.protocol === "https:" &&
+        next.origin === "https://accounts.google.com" &&
+        ["/o/oauth2/v2/auth", "/o/oauth2/auth"].includes(next.pathname) && !next.hash;
       if (!neonInit && !googleAuthorize) throw Error("INVALID_DESTINATION");
-      // No token is displayed, logged or stored by this page.
-      location.assign(u.href);
-    } catch (e) {
-      setStatus("Sign-in start failed [" + safeErrorCode(e) + "]. No session was accepted. " +
-        "If it repeats, open F12 > Network and check only the status of sign-in/social; do not share tokens or full URLs.");
+      // The marker contains only a timestamp, never a token or a user ID.
+      try { sessionStorage.setItem(PENDING_KEY, String(Date.now())); }
+      catch (_) { throw Error("BROWSER_STORAGE_UNAVAILABLE"); }
+      location.assign(next.href);
+    } catch (error) {
+      clearPending();
+      setStatus("Sign-in start failed [" + safeErrorCode(error) + "]. No session was accepted.");
       buttons.forEach(b => b.disabled = false);
     }
   });
+
   buttons[1].addEventListener("click", async () => {
     setStatus("Checking Neon session…");
     try {
-      const result = await call("/get-session");
-      const user = result.user || result.data?.user;
-      setStatus(user?.id ? "Neon reports a signed-in test session. Not authorized for MCP." : "No active Neon session found in this browser.");
-    } catch (e) { setStatus("Session check failed [" + safeErrorCode(e) + "]. No identity was accepted."); }
+      const active = await checkSession();
+      setStatus(active
+        ? "Neon reports an active test session. Not authorized for MCP."
+        : (wasExchanged
+          ? "One-time verification succeeded, but no session cookie is available now."
+          : "No active Neon session found in this browser."));
+    } catch (error) {
+      setStatus("Session check failed [" + safeErrorCode(error) + "]. No identity was accepted.");
+    }
   });
+
   buttons[2].addEventListener("click", async () => {
+    setStatus("Requesting test sign-out…");
     try {
-      await call("/sign-out",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"});
-      setStatus("Signed out from the test session.");
-    } catch (e) { setStatus("Sign-out could not be confirmed [" + safeErrorCode(e) + "]."); }
+      await call("/sign-out", {method: "POST", headers: {"Content-Type": "application/json"}, body: "{}"});
+      wasExchanged = false;
+      clearPending();
+      setStatus("Sign-out requested. Confirm it using Check Neon session.");
+    } catch (error) {
+      setStatus("Sign-out could not be confirmed [" + safeErrorCode(error) + "].");
+    }
   });
-  if (location.search) history.replaceState(null,"",location.pathname);
+  void handleOAuthReturn();
 })();
 '''
-
 
 async def staging_js(request):
     if not staging_login_enabled():

@@ -1,3 +1,7 @@
+## GarminAI Public v0.8.4.3 — Neon OAuth verifier exchange (staging)
+
+Fix for the missing OAuth callback verifier and misleading `NETWORK_OR_CORS` on JSON `null`; `/healthz` now reports `0.8.4.3`. Still demo-only; no live Garmin or MCP identity. See [V0843_NEON_VERIFIER_EXCHANGE_SR.md](docs/V0843_NEON_VERIFIER_EXCHANGE_SR.md).
+
 ## GarminAI Public v0.8.4 — izolovani Neon Google Login POC (2026-11-13)
 
 Staging-only, opcioni eksperiment sa Neon Better Auth grane `auth-staging`, pod putanjom `/auth/staging/google`. Ne autentifikuje MCP, ne autorizuje Garmin i nema stvarnih aktivnosti. Tek posle zasebnog, bezbednog testiranja implementira se kompletna prijava zvaničnim Neon SDK-om. Uputstvo: `docs/V084_AUTH_STAGING_POC_SR.md`.
