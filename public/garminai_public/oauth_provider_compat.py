@@ -63,7 +63,7 @@ def assess_provider(metadata: object, *, expected_issuer: str) -> ProviderAssess
 def deployment_requirements() -> dict:
     """Public, non-sensitive project status. All security-critical work stays off."""
     return {
-        'version': '0.8.2',
+        'version': '0.8.3',
         'mode': 'STAGING_ONLY',
         'mcp_oauth_enabled': False,
         'garmin_oauth_enabled': False,

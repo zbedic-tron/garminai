@@ -1,4 +1,4 @@
-"""Safe pre-launch auth pages. No session or consent claims are made.
+"""Safe pre-launch auth pages (v0.8.3). No session or consent claims are made.
 
 The real Neon Managed Better Auth sign-in/consent client must replace these pages
 before enabling OAuth Provider. The signed oauth_query must be sent unchanged to

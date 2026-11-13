@@ -1,3 +1,10 @@
+## GarminAI Public v0.8.3 — Neon Auth Connectivity Staging (2026-11-13)
+
+- Render MCP stays `DEMO_ONLY` with six fictional-data tools. Live Garmin OAuth and MCP OAuth **are not enabled**.
+- Added `NEON_AUTH_URL` operator configuration and read-only Neon Auth reachability check on startup (`GARMINAI_NEON_AUTH_CHECK`).
+- `/auth/development-status` reports only nonsensitive readiness booleans. Login/consent pages are deliberately noninteractive until verified session and signed consent flow are implemented.
+- See [V083_NEON_AUTH_CONNECTION_SR.md](docs/V083_NEON_AUTH_CONNECTION_SR.md).
+
 # GarminAI Public v0.7 — PostgreSQL / User Isolation Staging
 
 **DEMO ONLY:** Garmin OAuth login, actual Garmin Activity API push intake, ChatGPT
