@@ -63,13 +63,16 @@ def assess_provider(metadata: object, *, expected_issuer: str) -> ProviderAssess
 def deployment_requirements() -> dict:
     """Public, non-sensitive project status. All security-critical work stays off."""
     return {
-        'version': '0.8.1',
+        'version': '0.8.2',
         'mode': 'STAGING_ONLY',
         'mcp_oauth_enabled': False,
         'garmin_oauth_enabled': False,
         'identity_provider_selected': False,
         'authorization_server_discovery_implemented': False,
         'end_user_login_ready': False,
+        'staging_login_page_available': True,
+        'staging_consent_page_available': True,
+        'consent_submission_enabled': False,
         'requirements': [
             'Trusted identity provider with OAuth authorization code and PKCE S256',
             'CIMD or Dynamic Client Registration compatible with ChatGPT',

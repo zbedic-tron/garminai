@@ -7,7 +7,7 @@ def get_readiness(env=None):
     redirect=e.get('GARMIN_REDIRECT_URI','')
     parsed=urlparse(redirect)
     return {
-        'version':'0.8.1',
+        'version':'0.8.2',
         'mode':'DEMO_ONLY',
         'garmin_connect_enabled':False,
         'garmin_client_id_configured':bool(e.get('GARMIN_CLIENT_ID')),
