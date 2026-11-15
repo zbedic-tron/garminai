@@ -1,4 +1,4 @@
-"""GarminAI Public v0.8.5: token-gated DEMO ONLY; not production OAuth."""
+"""GarminAI Public v0.8.6: token-gated DEMO ONLY; not production OAuth."""
 import os
 from contextlib import asynccontextmanager
 from starlette.applications import Starlette
@@ -12,7 +12,7 @@ from .readiness import get_readiness
 from .db_readiness import db_configuration_status
 from .db_check import startup_report
 from .oauth_provider_compat import deployment_requirements
-from .auth_pages import login_page, consent_page
+from .oauth_ui_staging import login_page, consent_page, ui_js, ui_status
 from .auth_staging_poc import staging_login, staging_js
 from .neon_auth_check import auth_configuration_status, startup_auth_report
 from .oauth_resource_staging import status as oauth_staging_status, metadata as oauth_staging_metadata, protected_stub as oauth_staging_stub
@@ -39,10 +39,10 @@ mcp.settings.transport_security = security
 mcp_asgi = mcp.streamable_http_app()
 
 async def health(_request):
-    return JSONResponse({"status":"ok", "version":"0.8.5", "mode":"DEMO_ONLY", "garmin_oauth":"NOT_CONNECTED", "auth":"DEMO_BEARER_GATE"})
+    return JSONResponse({"status":"ok", "version":"0.8.6", "mode":"DEMO_ONLY", "garmin_oauth":"NOT_CONNECTED", "auth":"DEMO_BEARER_GATE"})
 
 async def index(_request):
-    return JSONResponse({"project":"GarminAI Public", "version":"0.8.5", "mode":"DEMO_ONLY", "message":"Only fictional activity data. MCP endpoint: /mcp"})
+    return JSONResponse({"project":"GarminAI Public", "version":"0.8.6", "mode":"DEMO_ONLY", "message":"Only fictional activity data. MCP endpoint: /mcp"})
 
 async def integration_readiness(_request):
     # Only configuration booleans; never values. Not an invitation to connect Garmin yet.
@@ -66,4 +66,4 @@ async def lifespan(_app):
     async with mcp.session_manager.run():
         yield
 
-app = Starlette(routes=[Route("/", index), Route("/healthz", health), Route("/integration/readiness", integration_readiness), Route("/auth/development-status", oauth_development_status), Route("/auth/login", login_page), Route("/auth/staging/google", staging_login), Route("/auth/staging/google.js", staging_js), Route("/auth/consent", consent_page), Route("/garmin/oauth/callback", garmin_callback_disabled), Route("/auth/mcp-oauth/status", oauth_staging_status), Route("/.well-known/oauth-protected-resource/mcp-oauth-staging", oauth_staging_metadata), Route("/mcp-oauth-staging", oauth_staging_stub, methods=["GET", "POST"]), Mount("/", app=DemoBearerGate(mcp_asgi))], lifespan=lifespan)
+app = Starlette(routes=[Route("/", index), Route("/healthz", health), Route("/integration/readiness", integration_readiness), Route("/auth/development-status", oauth_development_status), Route("/auth/oauth-ui/status", ui_status), Route("/auth/login", login_page), Route("/auth/staging/google", staging_login), Route("/auth/staging/google.js", staging_js), Route("/auth/consent", consent_page), Route("/auth/oauth-ui.js", ui_js), Route("/garmin/oauth/callback", garmin_callback_disabled), Route("/auth/mcp-oauth/status", oauth_staging_status), Route("/.well-known/oauth-protected-resource/mcp-oauth-staging", oauth_staging_metadata), Route("/mcp-oauth-staging", oauth_staging_stub, methods=["GET", "POST"]), Mount("/", app=DemoBearerGate(mcp_asgi))], lifespan=lifespan)

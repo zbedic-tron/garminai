@@ -1,3 +1,7 @@
+# GarminAI Public v0.8.6 — OAuth Login & Consent STAGING (2026-11-15)
+
+Login i Consent UI rade samo kada se eksplicitno uključi zaseban staging prekidač i kada Neon verifikuje potpisani `oauth_query`. Podrazumevano je sve isključeno. **Neon OAuth Provider, MCP prava i Garmin podaci nisu uključeni.** Uputstvo: [V086_OAUTH_LOGIN_CONSENT_SR.md](docs/V086_OAUTH_LOGIN_CONSENT_SR.md).
+
 ## GarminAI Public v0.8.4.3 — Neon OAuth verifier exchange (staging)
 
 Fix for the missing OAuth callback verifier and misleading `NETWORK_OR_CORS` on JSON `null`; `/healthz` now reports `0.8.4.3`. Still demo-only; no live Garmin or MCP identity. See [V0843_NEON_VERIFIER_EXCHANGE_SR.md](docs/V0843_NEON_VERIFIER_EXCHANGE_SR.md).
