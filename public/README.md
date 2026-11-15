@@ -90,3 +90,8 @@ staging resursa i `401` izazov su **isključeni** dok ne završimo validaciju
 Neon OAuth Providera i pristanka. Postojeći demo `/mcp` nije menjan.
 Detaljna uputstva: `docs/V085_MCP_OAUTH_STAGING_SR.md` i
 korenska datoteka `V085_START_HERE_SR.md` u ZIP paketu.
+
+
+## v0.8.7.1 — OAuth staging Login/Consent
+
+Zamena opcione Neon `public-client-prelogin` provere staging tokom; ograničenje na konfigurisani testni klijent i callback, Neon `oauth2/authorize`, autentifikovani `oauth2/public-client` i konačnu Neon proveru `oauth_query` prilikom consent-a. Vidi `docs/V0871_OAUTH_LOGIN_CONSENT_PATCH_SR.md`. Nema produkcionog MCP/Garmin pristupa.

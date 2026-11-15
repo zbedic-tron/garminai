@@ -11,7 +11,9 @@ from garminai_public.oauth_ui_staging import (
 
 BASE='https://ep-test.neonauth.c-7.eu-central-1.aws.neon.tech/neondb/auth'
 HOST='garminai-public-demo.onrender.com'
-ENV={'RENDER_EXTERNAL_HOSTNAME':HOST,'NEON_AUTH_STAGING_URL':BASE}
+CLIENT='garminai-test-public-client-001'
+CALLBACK='https://'+HOST+'/auth/oauth-test/callback'
+ENV={'RENDER_EXTERNAL_HOSTNAME':HOST,'NEON_AUTH_STAGING_URL':BASE, 'GARMINAI_OAUTH_TEST_CLIENT_ID':CLIENT}
 
 
 def call(fn):
@@ -36,7 +38,9 @@ class OAuthUiTests(unittest.TestCase):
                        {'RENDER_EXTERNAL_HOSTNAME':'../evil.onrender.com'},
                        {'NEON_AUTH_STAGING_URL':'https://evil.test/auth'},
                        {'NEON_AUTH_STAGING_URL':'http://'+BASE[8:]},
-                       {'NEON_AUTH_STAGING_URL':BASE+'?password=foo'}):
+                       {'NEON_AUTH_STAGING_URL':BASE+'?password=foo'},
+                       {'GARMINAI_OAUTH_TEST_CLIENT_ID':''},
+                       {'GARMINAI_OAUTH_TEST_CLIENT_ID':'https://evil.test/client'}):
             with self.subTest(change=change):
                 e={**ENV,'GARMINAI_OAUTH_UI_STAGING_ENABLED':'1',**change}
                 self.assertFalse(configuration(e)['enabled'])
@@ -72,7 +76,11 @@ class OAuthUiTests(unittest.TestCase):
             self.assertFalse(status['garmin_live_data_enabled'])
 
     def test_javascript_never_does_unverified_grants_or_user_token_storage(self):
-        self.assertIn("/oauth2/public-client-prelogin",_JS)
+        self.assertNotIn("/oauth2/public-client-prelogin",_JS)
+        self.assertIn("/oauth2/public-client?client_id=",_JS)
+        self.assertIn("/oauth2/authorize",_JS)
+        self.assertIn("expectedClient",_JS)
+        self.assertIn("expectedCallback",_JS)
         self.assertIn('oauth_query:signed.toString()',_JS)
         self.assertIn("/oauth2/consent",_JS)
         self.assertIn('data-mode',call_src())
@@ -89,12 +97,12 @@ class OAuthUiTests(unittest.TestCase):
         self.assertIn('DemoBearerGate(mcp_asgi)',source)
         self.assertIn('Route("/auth/oauth-ui/status", ui_status)',source)
         self.assertIn('Route("/auth/oauth-ui.js", ui_js)',source)
-        self.assertIn('"version":"0.8.7"',source)
+        self.assertIn('"version":"0.8.7.1"',source)
 
 
 def call_src():
     from garminai_public.oauth_ui_staging import _response
-    return _response(mode='consent',base=BASE,resource='https://'+HOST+'/mcp-oauth-staging').body.decode()
+    return _response(mode='consent',base=BASE,resource='https://'+HOST+'/mcp-oauth-staging',client_id=CLIENT,callback=CALLBACK).body.decode()
 
 
 if __name__=='__main__': unittest.main()

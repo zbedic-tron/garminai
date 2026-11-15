@@ -1,13 +1,7 @@
-"""v0.8.6: opt-in, staging-only Neon-managed OAuth login/consent browser pages.
+"""GarminAI v0.8.7.1: managed Neon OAuth for one registered staging client.
 
-Neon is ALWAYS the authorization server. These pages MUST NOT sign requests,
-issue tokens, verify identities for MCP, or decide authorization themselves.
-The /oauth2/public-client-prelogin call verifies Neon's signed oauth_query
-before the page reveals client details or enables any consent action.
-
-IMPORTANT: Neon OAuth Provider's allowPublicClientPrelogin option must be enabled
-by the operator *when* testing the real flow. Without it, UI fails closed.
-No real Garmin data or MCP tool authorization is enabled by these pages.
+No client-side signature verification is claimed. Neon verifies signed oauth_query
+when consenting and validates authorize requests. Actual MCP/Garmin stays disabled.
 """
 import os
 import re
@@ -26,7 +20,10 @@ def configuration(env=None):
     enabled = e.get("GARMINAI_OAUTH_UI_STAGING_ENABLED") == "1"
     base = e.get("NEON_AUTH_STAGING_URL", "").strip()
     hostname = e.get("RENDER_EXTERNAL_HOSTNAME", "").strip().lower()
+    client_id = e.get("GARMINAI_OAUTH_TEST_CLIENT_ID", "").strip()
     issues = []
+    if enabled and (not 8 <= len(client_id) <= 300 or not re.fullmatch(r"[A-Za-z0-9._~-]+", client_id)):
+        issues.append("INVALID_STAGING_TEST_CLIENT_ID")
     if not validate_staging_auth_url(base):
         issues.append("INVALID_STAGING_AUTH_URL")
     if not _HOST.fullmatch(hostname) or ".." in hostname or hostname.endswith("."):
@@ -40,6 +37,8 @@ def configuration(env=None):
         "issues": issues,
         "neon_auth": base if enabled and not issues else "",
         "resource": "https://" + hostname + "/mcp-oauth-staging" if enabled and not issues else "",
+        "client_id": client_id if enabled and not issues else "",
+        "callback": "https://" + hostname + "/auth/oauth-test/callback" if enabled and not issues else "",
     }
 
 
@@ -56,7 +55,7 @@ button.deny{background:#4c2935;border-color:#f7b4b4}button:disabled{background:#
 """
 
 
-def _response(*, mode: str, base: str, resource: str) -> HTMLResponse:
+def _response(*, mode: str, base: str, resource: str, client_id: str, callback: str) -> HTMLResponse:
     # Only operator-controlled values appear in markup. OAuth URL/query is NEVER echoed.
     title = "Sign in to GarminAI" if mode == "login" else "Authorize ChatGPT / MCP"
     if mode == "login":
@@ -68,7 +67,7 @@ def _response(*, mode: str, base: str, resource: str) -> HTMLResponse:
                     '<button type="button" id="deny" class="deny" disabled>Deny</button>'
                     '<a id="login-link" hidden href="/auth/login">Sign in first</a>')
     html = f'''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{escape(title)}</title><style>{_CSS}</style></head>
-<body><main data-mode="{mode}" data-auth="{escape(base, quote=True)}" data-resource="{escape(resource, quote=True)}">
+<body><main data-mode="{mode}" data-auth="{escape(base, quote=True)}" data-resource="{escape(resource, quote=True)}" data-client-id="{escape(client_id, quote=True)}" data-callback="{escape(callback, quote=True)}">
 <div class="brand">GARMINAI PUBLIC · OAUTH STAGING</div><h1>{escape(title)}</h1>
 <p class="notice">Staging only. This page never connects Garmin accounts or grants MCP tool access.</p>
 {controls}<p role="status" aria-live="polite" id="status">Verifying signed request with Neon…</p>
@@ -88,59 +87,61 @@ async def login_page(request):
     c = configuration()
     if not c["enabled"]:
         return await disabled_login(request)
-    return _response(mode="login", base=c["neon_auth"], resource=c["resource"])
+    return _response(mode="login", base=c["neon_auth"], resource=c["resource"], client_id=c["client_id"], callback=c["callback"])
 
 
 async def consent_page(request):
     c = configuration()
     if not c["enabled"]:
         return await disabled_consent(request)
-    return _response(mode="consent", base=c["neon_auth"], resource=c["resource"])
+    return _response(mode="consent", base=c["neon_auth"], resource=c["resource"], client_id=c["client_id"], callback=c["callback"])
 
 
 async def ui_status(request):
     c = configuration()
     return JSONResponse({
-        "version":"0.8.7", "mode":"STAGING_ONLY",
+        "version":"0.8.7.1", "mode":"STAGING_ONLY",
         "oauth_ui_staging_enabled": c["enabled"],
         "oauth_ui_config_errors": c["issues"] if c["requested"] else [],
         "provider_enabled_by_this_app": False,
         "mcp_authenticated_tools_enabled": False,
         "garmin_live_data_enabled": False,
-        "next":"Verify signed Neon Login/Consent requests with the isolated v0.8.7 E2E test client; MCP/Garmin access is disabled.",
+        "next":"Test Neon-signed consent and PKCE callback for the configured staging client; MCP/Garmin access is disabled.",
     }, headers={"Cache-Control":"no-store"})
 
 
 _JS = r'''"use strict";
-// v0.8.6: signed OAuth request staging. No MCP tokens, Garmin data or client secrets.
-// See docs/V086_OAUTH_LOGIN_CONSENT_SR.md for provider configuration requirements.
+// GarminAI v0.8.7.1: one known staging client only; Neon validates the signed
+// query when handling authorization/consent. This browser does NOT verify sig.
 (() => {
   const root = document.querySelector('main[data-mode]');
   if (!root) return;
   const mode = root.dataset.mode;
   const base = root.dataset.auth;
   const resource = root.dataset.resource;
+  const expectedClient = root.dataset.clientId;
+  const expectedCallback = root.dataset.callback;
   const status = document.getElementById('status');
   const signin = document.getElementById('signin');
   const allow = document.getElementById('allow');
   const deny = document.getElementById('deny');
   const pendingKey = 'garminai.oauth-ui-staging.pending.v1';
+  const resumeKey = 'garminai.oauth-ui-staging.resume.v0871';
   const maxAgeMs = 10 * 60 * 1000;
   let busy = false;
   const note = message => { status.textContent = message; };
   const disableAll = () => { for (const b of [signin, allow, deny]) if (b) b.disabled = true; };
 
-  // Only the parameters designated by the provider's signed ba_param list are
-  // forwarded. The session verifier is NOT part of oauth_query.
   function signedRequest(params) {
     const names = params.getAll('ba_param');
-    if (params.getAll('sig').length !== 1 || names.length < 1 || names.length > 48 ||
+    if (params.getAll('sig').length !== 1 || !params.get('sig') ||
+        names.length < 1 || names.length > 48 || new Set(names).size !== names.length ||
         names.some(n => !/^[a-zA-Z][a-zA-Z0-9_]{0,63}$/.test(n)) ||
-        params.getAll('client_id').length !== 1 || params.toString().length > 8192) return null;
+        params.toString().length > 8192) return null;
     const keys = new Set(['sig', 'ba_param', ...names]);
-    if (![...keys].every(k => k === 'sig' || k === 'ba_param' || names.includes(k))) return null;
     const query = new URLSearchParams([...params].filter(([key]) => keys.has(key)));
-    if (!query.has('client_id') || !query.has('sig')) return null;
+    for (const name of names) if (query.getAll(name).length !== 1) return null;
+    if (!names.includes('client_id')) return null;
     return query;
   }
 
@@ -148,19 +149,25 @@ _JS = r'''"use strict";
   const verifier = params.get('neon_auth_session_verifier');
   const hasVerifier = params.has('neon_auth_session_verifier');
   const signed = signedRequest(params);
-  // Strip the session verifier and any unrelated parameters from the address.
+  // Remove the one-time verifier before any fetch, DOM update or navigation.
   if (signed) history.replaceState(null, '', location.pathname + '?' + signed.toString());
   else if (location.search) history.replaceState(null, '', location.pathname);
 
-  function usableRedirect(value, {neonOnly = false} = {}) {
+  function usableRedirect(value, {neonOnly = false, providerReply = false} = {}) {
     if (typeof value !== 'string' || value.length > 4096) return null;
     let u;
     try { u = new URL(value); } catch (_) { return null; }
     if (u.protocol !== 'https:' || u.username || u.password || u.hash) return null;
+    const auth = new URL(base);
     if (neonOnly) {
-      const auth = new URL(base);
       if (u.origin !== auth.origin || u.pathname !== auth.pathname + '/sign-in/social/init' ||
           u.searchParams.size !== 1 || !/^[A-Za-z0-9_-]{16,256}$/.test(u.searchParams.get('token') || '')) return null;
+    }
+    if (providerReply) {
+      const onNeon = u.origin === auth.origin && u.pathname.startsWith(auth.pathname + '/');
+      const onOurApp = u.origin === location.origin &&
+        ['/auth/login','/auth/consent','/auth/oauth-test/callback'].includes(u.pathname);
+      if (!onNeon && !onOurApp) return null;
     }
     return u.href;
   }
@@ -178,13 +185,10 @@ _JS = r'''"use strict";
     try { return await res.json(); } catch (_) { throw Error('INVALID_JSON'); }
   }
 
-  function data(v) { return v?.data ?? v; }
-  function signedValue(name) { return signed?.get(name) || ''; }
-  function sessionActive(v) {
-    const x = data(v);
-    return typeof x?.user?.id === 'string' && x.user.id.length > 0 &&
-      !!x.session && typeof x.session === 'object';
-  }
+  const data = v => v?.data ?? v;
+  const signedValue = n => signed?.get(n) || '';
+  const sessionActive = v => { const x = data(v); return !!(
+    typeof x?.user?.id === 'string' && x.user.id && x.session && typeof x.session === 'object'); };
   async function checkSession(withVerifier) {
     const path = withVerifier
       ? '/get-session?neon_auth_session_verifier=' + encodeURIComponent(withVerifier)
@@ -196,7 +200,7 @@ _JS = r'''"use strict";
     const digest = await crypto.subtle.digest('SHA-256', bytes);
     return Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2,'0')).join('');
   }
-  function clearPending() { try { sessionStorage.removeItem(pendingKey); } catch (_) {} }
+  const clearPending = () => { try {sessionStorage.removeItem(pendingKey);} catch (_) {} };
   async function callbackWasStartedHere() {
     let marker;
     try { marker = JSON.parse(sessionStorage.getItem(pendingKey) || 'null'); }
@@ -207,73 +211,99 @@ _JS = r'''"use strict";
       marker.hash === await queryHash(signed.toString()));
   }
 
-  async function verifySignedClient() {
+  // Staging-only structural restrictions. These do NOT prove Neon's signature;
+  // Neon will independently validate the client, redirect, scopes, PKCE, and
+  // signed oauth_query when issuing any authorization code or accepting consent.
+  function validateStagingRequest() {
     if (!signed) throw Error('INVALID_SIGNED_REQUEST');
+    if (signedValue('client_id') !== expectedClient) throw Error('UNEXPECTED_CLIENT');
+    if (signedValue('redirect_uri') !== expectedCallback) throw Error('UNSAFE_CLIENT_REDIRECT');
     if (signedValue('scope') !== 'openid') throw Error('UNSUPPORTED_SCOPE');
     if (signedValue('resource') !== resource) throw Error('RESOURCE_MISMATCH');
-    if (signedValue('response_type') !== 'code' || signedValue('code_challenge_method') !== 'S256')
+    if (signedValue('response_type') !== 'code' || signedValue('code_challenge_method') !== 'S256' ||
+        !/^[A-Za-z0-9_-]{43}$/.test(signedValue('code_challenge')) ||
+        !/^[A-Za-z0-9_-]{43}$/.test(signedValue('state')))
       throw Error('UNSUPPORTED_OAUTH_FLOW');
-    if (!signedValue('redirect_uri') || !usableRedirect(signedValue('redirect_uri')))
-      throw Error('UNSAFE_CLIENT_REDIRECT');
-    // Managed Neon verifies the signed oauth_query. The page NEVER trusts URL
-    // client_id, client_name, scope, or resource prior to this response.
-    const result = data(await api('/oauth2/public-client-prelogin', {
-      method:'POST', body:{client_id:signedValue('client_id'), oauth_query:signed.toString()}
-    }));
+    // Prompt must remain the value initiated by our e2e test client.
+    if (signedValue('prompt') !== 'consent') throw Error('UNEXPECTED_PROMPT');
+  }
+
+  async function registeredClient() {
+    const result = data(await api('/oauth2/public-client?client_id=' + encodeURIComponent(expectedClient)));
     const client = result?.client ?? result;
-    const clientId = client?.client_id ?? client?.clientId;
-    if (!client || clientId !== signedValue('client_id') || client?.disabled === true)
+    const id = client?.client_id ?? client?.clientId;
+    if (id !== expectedClient || client?.disabled === true) throw Error('CLIENT_NOT_VERIFIED');
+    // If Neon includes registered redirect URIs, they must contain our exact callback.
+    const uris = client.redirect_uris ?? client.redirectUris;
+    if (uris !== undefined && (!Array.isArray(uris) || !uris.includes(expectedCallback)))
       throw Error('CLIENT_NOT_VERIFIED');
     return client;
+  }
+
+  function resumeAtNeon() {
+    validateStagingRequest();
+    // If Neon cannot see its first-party session, repeated redirects back to
+    // this page must NOT become an unbounded login/authorize loop.
+    try {
+      const last = JSON.parse(sessionStorage.getItem(resumeKey) || 'null');
+      if (last?.state === signedValue('state') && Number.isFinite(last.at) &&
+          Date.now() >= last.at && Date.now() - last.at < maxAgeMs)
+        throw Error('OAUTH_SESSION_LOOP');
+      sessionStorage.setItem(resumeKey, JSON.stringify({state:signedValue('state'),at:Date.now()}));
+    } catch (e) {
+      if (e?.message === 'OAUTH_SESSION_LOOP') throw e;
+      throw Error('BROWSER_STORAGE_UNAVAILABLE');
+    }
+    // A new top-level authorization request is independently validated by Neon.
+    // No selected/created/postLogin flag is falsely asserted in /oauth2/continue.
+    const url = new URL(base + '/oauth2/authorize');
+    for (const name of ['response_type','client_id','redirect_uri','scope','resource','state',
+                        'code_challenge','code_challenge_method','prompt'])
+      url.searchParams.set(name, signedValue(name));
+    note('Session established; Neon will validate the authorization request…');
+    location.assign(url.href);
   }
 
   async function followProviderReply(result) {
     const payload = data(result);
     if (payload?.redirect !== true) throw Error('NO_VERIFIED_REDIRECT');
-    const dest = usableRedirect(payload.url);
+    const dest = usableRedirect(payload.url, {providerReply:true});
     if (!dest) throw Error('UNSAFE_PROVIDER_REDIRECT');
-    // Redirect comes only from the trusted, explicitly configured Neon origin.
     location.assign(dest);
   }
   function failure(e) {
     disableAll();
     const code = String(e?.message || 'ERROR');
-    const safe = /^(HTTP_[0-9]{3}|NETWORK_OR_BROWSER_POLICY|INVALID_JSON|INVALID_SIGNED_REQUEST|UNSUPPORTED_SCOPE|RESOURCE_MISMATCH|UNSUPPORTED_OAUTH_FLOW|UNSAFE_CLIENT_REDIRECT|CLIENT_NOT_VERIFIED|NO_VERIFIED_REDIRECT|UNSAFE_PROVIDER_REDIRECT|CALLBACK_UNEXPECTED|CALLBACK_INVALID|BROWSER_STORAGE_UNAVAILABLE|NEON_SIGNIN_INVALID)$/.test(code) ? code : 'UNEXPECTED_ERROR';
-    note('OAuth staging stopped [' + safe + ']. Return to ChatGPT and start a fresh request. No access was granted.');
+    const safe = /^(HTTP_[0-9]{3}|NETWORK_OR_BROWSER_POLICY|INVALID_JSON|INVALID_SIGNED_REQUEST|UNEXPECTED_CLIENT|UNEXPECTED_PROMPT|UNSUPPORTED_SCOPE|RESOURCE_MISMATCH|UNSUPPORTED_OAUTH_FLOW|UNSAFE_CLIENT_REDIRECT|CLIENT_NOT_VERIFIED|NO_VERIFIED_REDIRECT|UNSAFE_PROVIDER_REDIRECT|CALLBACK_UNEXPECTED|CALLBACK_INVALID|BROWSER_STORAGE_UNAVAILABLE|NEON_SIGNIN_INVALID|OAUTH_SESSION_LOOP)$/.test(code) ? code : 'UNEXPECTED_ERROR';
+    note('OAuth staging stopped [' + safe + ']. Start a fresh OAuth test. No access was granted.');
   }
   function showConsent(client) {
     const name = typeof client.client_name === 'string' ? client.client_name :
-      (typeof client.clientName === 'string' ? client.clientName : 'Registered OAuth client');
-    const host = new URL(signedValue('redirect_uri')).hostname;
+      (typeof client.clientName === 'string' ? client.clientName : 'Registered OAuth test client');
+    const host = new URL(expectedCallback).hostname;
     document.getElementById('client-name').textContent = name.slice(0,160);
-    document.getElementById('client-host').textContent = 'Return destination: ' + host + ' (client-chosen name, check carefully)';
+    document.getElementById('client-host').textContent = 'Return destination: ' + host + ' (check carefully)';
     document.getElementById('scope').textContent = 'openid — verify your sign-in identity';
     document.getElementById('resource').textContent = 'Requested staging resource: ' + resource;
     document.getElementById('client').hidden = false;
     document.getElementById('rights').hidden = false;
     allow.disabled = false; deny.disabled = false;
-    note('Review carefully. Approve and Deny both require your explicit click.');
+    note('Registered staging client. Neon validates the signed request when you submit consent.');
   }
   async function initialize() {
     disableAll();
     try {
-      if (!signed) throw Error('INVALID_SIGNED_REQUEST');
-      const client = await verifySignedClient();
+      validateStagingRequest();
       if (mode === 'login') {
         if (hasVerifier) {
           if (!verifier || !/^[A-Za-z0-9_-]{12,2048}$/.test(verifier) || !(await callbackWasStartedHere()))
             throw Error('CALLBACK_UNEXPECTED');
         }
         const loggedIn = await checkSession(hasVerifier ? verifier : undefined);
-        if (loggedIn) {
-          note('Signed in with Neon. Resuming OAuth request…');
-          return await followProviderReply(await api('/oauth2/continue', {
-            method:'POST', body:{selected:true,oauth_query:signed.toString()}
-          }));
-        }
+        if (loggedIn) return resumeAtNeon();
         if (hasVerifier) throw Error('CALLBACK_INVALID');
         signin.disabled = false;
-        note('Neon verified the OAuth request. Continue with Google to sign in.');
+        note('Google sign-in available. Neon validates the authorization request; no access is granted on this page.');
       } else if (mode === 'consent') {
         if (!(await checkSession())) {
           const link = document.getElementById('login-link');
@@ -282,7 +312,8 @@ _JS = r'''"use strict";
           note('Sign in first. No OAuth consent was issued.');
           return;
         }
-        showConsent(client);
+        // Only an authenticated Neon session can look up the registered client.
+        showConsent(await registeredClient());
       } else throw Error('INVALID_SIGNED_REQUEST');
     } catch (e) { failure(e); }
   }
@@ -297,27 +328,27 @@ _JS = r'''"use strict";
       }}));
       const dest = usableRedirect(response?.url, {neonOnly:true});
       if (!dest) throw Error('NEON_SIGNIN_INVALID');
-      try { sessionStorage.setItem(pendingKey, JSON.stringify({at:Date.now(), hash:await queryHash(signed.toString())})); }
-      catch (_) { throw Error('BROWSER_STORAGE_UNAVAILABLE'); }
+      try {sessionStorage.setItem(pendingKey, JSON.stringify({at:Date.now(),hash:await queryHash(signed.toString())}));}
+      catch (_) {throw Error('BROWSER_STORAGE_UNAVAILABLE');}
       location.assign(dest);
-    } catch (e) { clearPending(); failure(e); } finally { busy = false; }
+    } catch (e) {clearPending();failure(e);} finally {busy=false;}
   });
+
   async function decide(accept) {
     if (busy || !signed || allow.disabled) return;
     busy = true; disableAll(); note(accept ? 'Submitting approval to Neon…' : 'Submitting denial to Neon…');
     try {
       const result = await api('/oauth2/consent', {method:'POST', body:{
-        accept, scope:accept ? 'openid' : undefined, oauth_query:signed.toString()
+        accept, ...(accept ? {scope:'openid'} : {}), oauth_query:signed.toString()
       }});
       await followProviderReply(result);
-    } catch (e) { failure(e); } finally { busy = false; }
+    } catch (e) {failure(e);} finally {busy=false;}
   }
-  if (allow) allow.addEventListener('click', () => { void decide(true); });
-  if (deny) deny.addEventListener('click', () => { void decide(false); });
+  if (allow) allow.addEventListener('click', () => {void decide(true);});
+  if (deny) deny.addEventListener('click', () => {void decide(false);});
   void initialize();
 })();
 '''
-
 
 async def ui_js(request):
     if not configuration()["enabled"]:

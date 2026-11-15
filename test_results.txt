@@ -1,0 +1,5 @@
+.......................................................................................................................................                                                   [100%]
+135 passed, 31 subtests passed in 0.72s
+PASS: 19 OAuth UI browser simulations (staging-only, provider-enforced grants)
+PASS: 8 OAuth E2E browser simulations (PKCE, approved, denied, bad state, bad issuer, missing/expired marker, safe failure)
+PASS: 7 Node browser-flow cases: sign-in, verifier exchange, null, missing/expired marker, duplicate verifier, manual check

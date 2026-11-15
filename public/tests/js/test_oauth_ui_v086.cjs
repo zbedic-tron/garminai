@@ -7,128 +7,135 @@ const {TextEncoder} = require('node:util');
 const source = fs.readFileSync(process.argv[2], 'utf8');
 const BASE = 'https://ep-test.neonauth.c-7.eu-central-1.aws.neon.tech/neondb/auth';
 const RESOURCE = 'https://garminai-public-demo.onrender.com/mcp-oauth-staging';
-const CLIENT = 'https://chatgpt.com/oauth/client.json';
+const CLIENT = 'garminai-test-public-client-001';
+const CALLBACK = 'https://garminai-public-demo.onrender.com/auth/oauth-test/callback';
 const NOW = 1794735000000;
+const TOKEN='ABCDEFGHIJKLMNOP123456';
 
 function signedQuery(overrides={}) {
-  const signed = {
-    client_id: CLIENT, scope: 'openid', response_type: 'code',
-    code_challenge_method: 'S256', redirect_uri: 'https://chatgpt.com/connector_platform_oauth_redirect',
-    resource: RESOURCE, ...overrides,
+  const fields = {
+    client_id:CLIENT, scope:'openid', response_type:'code',
+    code_challenge_method:'S256', code_challenge:'C'.repeat(43), state:'S'.repeat(43),
+    redirect_uri:CALLBACK, resource:RESOURCE, prompt:'consent', ...overrides
   };
   const p = new URLSearchParams();
-  for (const [k,v] of Object.entries(signed)) {p.append('ba_param',k); p.append(k,v);}
-  p.append('sig','signature-by-neon-not-verified-locally');
+  for (const [k,v] of Object.entries(fields)) {p.append('ba_param',k); p.append(k,v);}
+  p.append('sig','NOT_A_REAL_SIGNATURE_PROVIDER_CHECKS_THIS');
   return '?' + p.toString();
 }
-const flush = async () => {for(let i=0;i<35;i++) await Promise.resolve();};
-function makePage({mode='consent', query=signedQuery(), active=true, verified=true, reply, pending=null}={}) {
+const flush = async () => {for(let i=0;i<40;i++) await Promise.resolve();};
+function page({mode='consent', query=signedQuery(), active=true, reply, pending=null}={}) {
   const calls=[], navigations=[], nodes={};
-  const element = id => nodes[id] ??= {
-    id, disabled: true, hidden:true, textContent:'', href:'',
-    addEventListener(_name, callback){this.click = callback;}
-  };
-  const storage = new Map(pending ? [['garminai.oauth-ui-staging.pending.v1', pending]] : []);
+  const element = id => nodes[id] ??= {id, disabled:true, hidden:true, textContent:'', href:'',
+    addEventListener(_name,callback){this.click=callback;}};
+  const storage = new Map(pending ? [['garminai.oauth-ui-staging.pending.v1',pending]] : []);
   const ctx = {
     URL, URLSearchParams, encodeURIComponent, TextEncoder, crypto:webcrypto,
-    Date: class extends Date {static now(){return NOW;}},
-    location: {origin:'https://garminai-public-demo.onrender.com', pathname:'/auth/'+mode, search:query, assign(uri){navigations.push(uri);}},
-    history: {replaceState(_x,_y,uri){ assert.ok(uri.startsWith('/auth/'+mode)); }},
+    Date:class extends Date {static now(){return NOW;}},
+    location:{origin:'https://garminai-public-demo.onrender.com',pathname:'/auth/'+mode,search:query,
+              assign(uri){navigations.push(uri);}},
+    history:{replaceState(_x,_y,uri){assert.ok(uri.startsWith('/auth/'+mode));}},
     sessionStorage:{getItem:k=>storage.get(k)??null,setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)},
-    document:{querySelector: s => {assert.equal(s,'main[data-mode]'); return {dataset:{mode,auth:BASE,resource:RESOURCE}};},getElementById:element},
-    fetch:async(url,opts)=> {
-      assert.equal(opts.credentials, 'include');
-      assert.equal(opts.redirect, 'error');
+    document:{querySelector:s=>{assert.equal(s,'main[data-mode]');
+      return {dataset:{mode,auth:BASE,resource:RESOURCE,clientId:CLIENT,callback:CALLBACK}};},getElementById:element},
+    fetch:async (url,opts)=>{
+      assert.equal(opts.credentials,'include');
+      assert.equal(opts.redirect,'error');
       calls.push({url,opts});
-      const path = url.slice(BASE.length);
-      let result;
-      if (reply) result = await reply(path,opts);
-      if (result === undefined) {
-        if (path === '/oauth2/public-client-prelogin')
-          result = verified ? {client_id:CLIENT, client_name:'Verified App'} : {status:403};
-        else if (path.startsWith('/get-session'))
-          result = active ? {user:{id:'test-user'},session:{id:'test-session'}} : null;
-        else if (path === '/oauth2/continue' || path === '/oauth2/consent')
-          result = {redirect:true,url:'https://chatgpt.com/connector_platform_oauth_redirect?code=fake'};
-        else if (path === '/sign-in/social')
-          result = {url:BASE+'/sign-in/social/init?token=ABCDEFGHIJKLMNOP123456',redirect:false};
+      const path=url.slice(BASE.length);
+      let result=reply ? await reply(path,opts) : undefined;
+      if (result===undefined) {
+        if (path.startsWith('/get-session')) result = active ? {user:{id:'user'},session:{id:'session'}} : null;
+        else if (path.startsWith('/oauth2/public-client?')) result={client_id:CLIENT,client_name:'Registered Test App',redirect_uris:[CALLBACK]};
+        else if (path==='/oauth2/consent') result={redirect:true,url:CALLBACK+'?code=fake'};
+        else if (path==='/sign-in/social') result={url:BASE+'/sign-in/social/init?token='+TOKEN,redirect:false};
         else throw Error('Unexpected call: '+path);
       }
       if (result?.status) return {ok:false,status:result.status,json:async()=>null};
       return {ok:true,status:200,json:async()=>result};
     },
-    console:{error(){throw Error('Do not log sensitive values');}, log(){throw Error('No logging');}}
+    console:{error(){throw Error('Do not log sensitive values');},log(){throw Error('No logging');}}
   };
   vm.runInNewContext(source,ctx,{timeout:1000});
   return {calls,navigations,nodes,storage,element};
 }
 (async()=>{
-  const untrusted=makePage({verified:false});
-  await flush();
-  assert.equal(untrusted.calls.length,1);
-  assert.equal(untrusted.element('allow').disabled,true);
-  assert.match(untrusted.element('status').textContent,/OAuth staging stopped \[HTTP_403\]/);
+  let checks=0;
+  const missing=page({query:''}); await flush();
+  assert.equal(missing.calls.length,0); assert.equal(missing.element('allow').disabled,true);checks++;
 
-  const missing=makePage({query:''});
-  await flush();
-  assert.equal(missing.calls.length,0);
-  assert.equal(missing.element('deny').disabled,true);
+  for (const [override,code] of [
+    [{scope:'openid garmin:read'},'UNSUPPORTED_SCOPE'],
+    [{resource:'https://evil.test/mcp'},'RESOURCE_MISMATCH'],
+    [{client_id:'another-client'},'UNEXPECTED_CLIENT'],
+    [{redirect_uri:'https://evil.test/callback'},'UNSAFE_CLIENT_REDIRECT'],
+    [{code_challenge_method:'plain'},'UNSUPPORTED_OAUTH_FLOW'],
+    [{state:'short'},'UNSUPPORTED_OAUTH_FLOW'],
+    [{prompt:'none'},'UNEXPECTED_PROMPT']
+  ]) {
+    const v=page({query:signedQuery(override)}); await flush();
+    assert.equal(v.calls.length,0);assert.equal(v.element('allow').disabled,true);
+    assert.match(v.element('status').textContent,new RegExp(code));checks++;
+  }
 
-  const tooBroad=makePage({query:signedQuery({scope:'openid garmin:read'})});
-  await flush();
-  assert.equal(tooBroad.calls.length,0);
-  assert.match(tooBroad.element('status').textContent,/UNSUPPORTED_SCOPE/);
+  const unsigned=page({query:signedQuery().replace(/sig=[^&]*/, 'sig=')}); await flush();
+  assert.equal(unsigned.calls.length,0);checks++;
 
-  const wrongResource=makePage({query:signedQuery({resource:'https://evil.test/mcp'})});
-  await flush();
-  assert.equal(wrongResource.calls.length,0);
-  assert.match(wrongResource.element('status').textContent,/RESOURCE_MISMATCH/);
-
-  const notLoggedIn=makePage({active:false});
-  await flush();
+  const notLoggedIn=page({active:false}); await flush();
   assert.equal(notLoggedIn.element('allow').disabled,true);
-  assert.equal(notLoggedIn.element('login-link').hidden,false);
-  assert.match(notLoggedIn.element('login-link').href,/^\/auth\/login\?/);
+  assert.equal(notLoggedIn.element('login-link').hidden,false);checks++;
 
-  const approve=makePage({active:true});
-  await flush();
+  const rejectedClient=page({reply:async p=>p.startsWith('/oauth2/public-client?')?{status:403}:undefined});
+  await flush();assert.equal(rejectedClient.element('allow').disabled,true);checks++;
+
+  const wrongRegisteredUri=page({reply:async p=>p.startsWith('/oauth2/public-client?')?
+    {client_id:CLIENT,redirect_uris:['https://evil.test/cb']}:undefined});
+  await flush();assert.equal(wrongRegisteredUri.element('allow').disabled,true);checks++;
+
+  const approve=page(); await flush();
   assert.equal(approve.element('allow').disabled,false);
-  assert.equal(approve.element('deny').disabled,false);
-  assert.equal(approve.element('client-name').textContent,'Verified App');
-  assert.equal(approve.element('scope').textContent,'openid — verify your sign-in identity');
+  assert.equal(approve.element('client-name').textContent,'Registered Test App');
   assert.equal(approve.calls.length,2);
-  await approve.element('allow').click();
-  await flush();
+  assert.ok(approve.calls.some(x=>x.url.includes('/oauth2/public-client?client_id=')));
+  assert.ok(!approve.calls.some(x=>x.url.includes('public-client-prelogin')));
+  await approve.element('allow').click();await flush();
   assert.equal(approve.navigations.length,1);
-  const accepted=approve.calls.find(c=>c.url.endsWith('/oauth2/consent'));
-  const acceptedBody=JSON.parse(accepted.opts.body);
-  assert.equal(acceptedBody.accept,true);
-  assert.equal(acceptedBody.scope,'openid');
-  assert.ok(acceptedBody.oauth_query.includes('ba_param'));
-  assert.equal(accepted.opts.credentials,'include');
+  const accept=approve.calls.find(x=>x.url.endsWith('/oauth2/consent'));
+  assert.equal(JSON.parse(accept.opts.body).accept,true);
+  assert.equal(JSON.parse(accept.opts.body).scope,'openid');checks++;
 
-  const reject=makePage({active:true});
-  await flush();
-  await reject.element('deny').click();
-  await flush();
-  const rejected=reject.calls.find(c=>c.url.endsWith('/oauth2/consent'));
-  assert.equal(JSON.parse(rejected.opts.body).accept,false);
-  assert.equal(reject.navigations.length,1);
+  const deny=page();await flush();await deny.element('deny').click();await flush();
+  assert.equal(JSON.parse(deny.calls.find(x=>x.url.endsWith('/oauth2/consent')).opts.body).accept,false);checks++;
 
-  const login=makePage({mode:'login',active:false});
-  await flush();
+  const invalidSignature=page({reply:async p=>p==='/oauth2/consent'?{status:400}:undefined});
+  await flush();await invalidSignature.element('allow').click();await flush();
+  assert.equal(invalidSignature.navigations.length,0);
+  assert.match(invalidSignature.element('status').textContent,/HTTP_400/);checks++;
+
+  const redirectAttack=page({reply:async p=>p==='/oauth2/consent'?{redirect:true,url:'https://evil.test/steal'}:undefined});
+  await flush();await redirectAttack.element('allow').click();await flush();
+  assert.equal(redirectAttack.navigations.length,0);checks++;
+
+  const login=page({mode:'login',active:false});await flush();
   assert.equal(login.element('signin').disabled,false);
-  await login.element('signin').click();
-  await flush();
+  assert.equal(login.calls.length,1); // session only; no prelogin
+  await login.element('signin').click();await flush();
   assert.equal(login.navigations.length,1);
   assert.ok(login.storage.has('garminai.oauth-ui-staging.pending.v1'));
-  const signIn=login.calls.find(c=>c.url.endsWith('/sign-in/social'));
-  assert.ok(JSON.parse(signIn.opts.body).oauth_query);
+  assert.ok(JSON.parse(login.calls.find(x=>x.url.endsWith('/sign-in/social')).opts.body).oauth_query);checks++;
 
-  const existing=makePage({mode:'login', active:true});
-  await flush();
-  assert.equal(existing.navigations.length,1);
-  assert.ok(existing.calls.find(c=>c.url.endsWith('/oauth2/continue')));
+  const already=page({mode:'login',active:true}); await flush();
+  assert.equal(already.navigations.length,1);
+  const next=new URL(already.navigations[0]);
+  assert.equal(next.origin,new URL(BASE).origin);
+  assert.equal(next.pathname,new URL(BASE).pathname+'/oauth2/authorize');
+  assert.equal(next.searchParams.get('client_id'),CLIENT);
+  assert.equal(next.searchParams.get('code_challenge'),'C'.repeat(43));
+  assert.ok(!already.calls.some(x=>x.url.includes('/oauth2/continue')));checks++;
 
-  console.log('PASS: 9 OAuth UI browser simulations: untrusted/missing/broad/wrong-resource, unsigned-out, allow, deny, login, continue');
+  const unexpectedVerifier=page({mode:'login',active:false,query:signedQuery()+'&neon_auth_session_verifier='+TOKEN});await flush();
+  assert.equal(unexpectedVerifier.element('signin').disabled,true);
+  assert.match(unexpectedVerifier.element('status').textContent,/CALLBACK_UNEXPECTED/);checks++;
+
+  console.log('PASS: '+checks+' OAuth UI browser simulations (staging-only, provider-enforced grants)');
 })().catch(e=>{console.error(e);process.exitCode=1;});
