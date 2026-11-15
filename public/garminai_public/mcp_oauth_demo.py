@@ -73,3 +73,16 @@ async def disconnect_garmin_account(confirmation: str, ctx: Context) -> dict:
     """
     from .garmin_link_v101 import disconnect_from_context
     return await disconnect_from_context(ctx, confirmation)
+
+
+@staging_mcp.tool()
+def run_synthetic_push_rehearsal(confirmation: str, ctx: Context) -> dict:
+    """Explicitly test Neon push inbox with ONE synthetic activity (no Garmin API calls).
+
+    Requires the exact confirmation RUN_SYNTHETIC_REHEARSAL and operator opt-in
+    GARMINAI_PUSH_REHEARSAL_STAGING_ENABLED=1. Saves at most one marked fictional
+    inbox row for the verified Neon user and proves a repeated insert is ignored.
+    No real Garmin workouts, tokens, AI sharing, or public push ingress.
+    """
+    from .garmin_push_e2e_v112 import rehearse_from_context
+    return rehearse_from_context(ctx, confirmation)

@@ -1,3 +1,11 @@
+# GarminAI Public v1.1.2 — sintetički Neon E2E test + kontinuitet projekta
+
+**START:** [`docs/PROJECT_CONTINUITY_SR.md`](docs/PROJECT_CONTINUITY_SR.md) za potpun projektni kontekst i nastavak u novom razgovoru. 
+
+**v1.1.2:** novi opt-in MCP alat `run_synthetic_push_rehearsal` trajno testira SAMO jedan fikcionalni inbox red po verifikovanom korisniku, bez Garmin API zahteva i bez AI pristupa stvarnim aktivnostima. Sve javne Garmin push rute ostaju zaključane (`503`). Aktivacija: `GARMINAI_PUSH_REHEARSAL_STAGING_ENABLED=1` samo tokom sintetičkog testa; posle vratiti na `0`. Uputstvo: `V112_START_HERE_SR.md` iz ZIP-a.
+
+---
+
 # GarminAI Public v1.1.1 — OFFLINE ingress + durable inbox rehearsal
 
 **Garmin push javno ostaje 503; Garmin OAuth i ChatGPT demo su sačuvani.** Nova SQL migracija 005 i offline testovi; bez Garmin IP opsega u javnom kodu. Detalji: `docs/V111_GARMIN_PUSH_INGRESS_OFFLINE_SR.md`.
