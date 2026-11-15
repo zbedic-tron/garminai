@@ -2,7 +2,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
-const {webcrypto} = require('node:crypto');
+const {webcrypto,createHash} = require('node:crypto');
 const {TextEncoder} = require('node:util');
 const source = fs.readFileSync(process.argv[2], 'utf8');
 const BASE = 'https://ep-test.neonauth.c-7.eu-central-1.aws.neon.tech/neondb/auth';
@@ -40,11 +40,14 @@ function neonSignedQuery() {
   return '?' + p.toString();
 }
 const flush = async () => {for(let i=0;i<40;i++) await Promise.resolve();};
-function page({mode='consent', query=signedQuery(), active=true, reply, pending=null}={}) {
+function page({mode='consent', query=signedQuery(), active=true, reply, pending=null, resume=null}={}) {
   const calls=[], navigations=[], nodes={};
   const element = id => nodes[id] ??= {id, disabled:true, hidden:true, textContent:'', href:'',
     addEventListener(_name,callback){this.click=callback;}};
-  const storage = new Map(pending ? [['garminai.oauth-ui-staging.pending.v1',pending]] : []);
+  const storage = new Map([
+    ...(pending ? [['garminai.oauth-ui-staging.pending.v1',pending]] : []),
+    ...(resume ? [['garminai.oauth-ui-staging.resume.v0871',resume]] : [])
+  ]);
   const ctx = {
     URL, URLSearchParams, encodeURIComponent, TextEncoder, crypto:webcrypto,
     Date:class extends Date {static now(){return NOW;}},
@@ -63,6 +66,7 @@ function page({mode='consent', query=signedQuery(), active=true, reply, pending=
       if (result===undefined) {
         if (path.startsWith('/get-session')) result = active ? {user:{id:'user'},session:{id:'session'}} : null;
         else if (path.startsWith('/oauth2/public-client?')) result={client_id:CLIENT,client_name:'Registered Test App',redirect_uris:[CALLBACK]};
+        else if (path==='/oauth2/continue') result={redirect:true,url:'https://garminai-public-demo.onrender.com/auth/consent'+query};
         else if (path==='/oauth2/consent') result={redirect:true,url:CALLBACK+'?code=fake'};
         else if (path==='/sign-in/social') result={url:BASE+'/sign-in/social/init?token='+TOKEN,redirect:false};
         else throw Error('Unexpected call: '+path);
@@ -165,14 +169,55 @@ function page({mode='consent', query=signedQuery(), active=true, reply, pending=
   assert.ok(login.storage.has('garminai.oauth-ui-staging.pending.v1'));
   assert.ok(JSON.parse(login.calls.find(x=>x.url.endsWith('/sign-in/social')).opts.body).oauth_query);checks++;
 
+  // A signed-in login page must continue the ORIGINAL signed request, rather
+  // than issuing a second /oauth2/authorize and getting redirected to login.
   const already=page({mode:'login',active:true}); await flush();
   assert.equal(already.navigations.length,1);
   const next=new URL(already.navigations[0]);
-  assert.equal(next.origin,new URL(BASE).origin);
-  assert.equal(next.pathname,new URL(BASE).pathname+'/oauth2/authorize');
+  assert.equal(next.pathname,'/auth/consent');
   assert.equal(next.searchParams.get('client_id'),CLIENT);
   assert.equal(next.searchParams.get('code_challenge'),'C'.repeat(43));
-  assert.ok(!already.calls.some(x=>x.url.includes('/oauth2/continue')));checks++;
+  const continued=already.calls.filter(x=>x.url.endsWith('/oauth2/continue'));
+  assert.equal(continued.length,1);
+  assert.equal(continued[0].opts.method,'POST');
+  const continuedBody=JSON.parse(continued[0].opts.body);
+  assert.equal(continuedBody.selected,true);
+  assert.equal(new URLSearchParams(continuedBody.oauth_query).get('sig'), 'NOT_A_REAL_SIGNATURE_PROVIDER_CHECKS_THIS');
+  assert.equal(already.calls.some(x=>x.url.includes('/oauth2/authorize')),false);checks++;
+
+  // Provider errors and redirects to untrusted origins must not proceed.
+  const continueRefused=page({mode:'login',active:true,reply:async p=>p==='/oauth2/continue'?{status:403}:undefined});
+  await flush();
+  assert.equal(continueRefused.navigations.length,0);
+  assert.match(continueRefused.element('status').textContent,/HTTP_403/);checks++;
+  const continueUnsafe=page({mode:'login',active:true,reply:async p=>p==='/oauth2/continue'?{redirect:true,url:'https://evil.test/capture'}:undefined});
+  await flush();
+  assert.equal(continueUnsafe.navigations.length,0);
+  assert.match(continueUnsafe.element('status').textContent,/UNSAFE_PROVIDER_REDIRECT/);checks++;
+  const continueMissingRedirect=page({mode:'login',active:true,reply:async p=>p==='/oauth2/continue'?{redirect:false,url:CALLBACK}:undefined});
+  await flush();
+  assert.equal(continueMissingRedirect.navigations.length,0);
+  assert.match(continueMissingRedirect.element('status').textContent,/NO_VERIFIED_REDIRECT/);checks++;
+
+  // Google callback: only the exact pending request may use the verifier,
+  // and then it must exchange the verifier and continue the same signed query.
+  const returningQuery=signedQuery();
+  const returningPending=JSON.stringify({at:NOW,hash:createHash('sha256').update(returningQuery.slice(1)).digest('hex')});
+  const returning=page({mode:'login',query:returningQuery+'&neon_auth_session_verifier='+TOKEN,
+    active:true,pending:returningPending});
+  await new Promise(resolve=>setTimeout(resolve,30)); await flush();
+   assert.equal(returning.navigations.length,1);
+  assert.equal(returning.calls.filter(x=>x.url.includes('neon_auth_session_verifier=')).length,1);
+  assert.equal(returning.calls.filter(x=>x.url.endsWith('/oauth2/continue')).length,1);
+  assert.ok(!returning.storage.has('garminai.oauth-ui-staging.pending.v1'));checks++;
+
+  // If Neon redirects to login again for the same state, stop rather than
+  // automatically issuing a second continuation request.
+  const loopGuard=page({mode:'login',active:true,resume:JSON.stringify({state:'S'.repeat(43),at:NOW})});
+  await flush();
+  assert.equal(loopGuard.navigations.length,0);
+  assert.equal(loopGuard.calls.filter(x=>x.url.endsWith('/oauth2/continue')).length,0);
+  assert.match(loopGuard.element('status').textContent,/OAUTH_SESSION_LOOP/);checks++;
 
   const unexpectedVerifier=page({mode:'login',active:false,query:signedQuery()+'&neon_auth_session_verifier='+TOKEN});await flush();
   assert.equal(unexpectedVerifier.element('signin').disabled,true);

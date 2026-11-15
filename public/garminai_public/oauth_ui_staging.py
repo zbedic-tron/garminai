@@ -1,4 +1,4 @@
-"""GarminAI v0.8.7.2: managed Neon OAuth for one registered staging client.
+"""GarminAI v0.8.7.3: managed Neon OAuth for one registered staging client.
 
 No client-side signature verification is claimed. Neon verifies signed oauth_query
 when consenting and validates authorize requests. Actual MCP/Garmin stays disabled.
@@ -100,7 +100,7 @@ async def consent_page(request):
 async def ui_status(request):
     c = configuration()
     return JSONResponse({
-        "version":"0.8.7.2", "mode":"STAGING_ONLY",
+        "version":"0.8.7.3", "mode":"STAGING_ONLY",
         "oauth_ui_staging_enabled": c["enabled"],
         "oauth_ui_config_errors": c["issues"] if c["requested"] else [],
         "provider_enabled_by_this_app": False,
@@ -111,7 +111,7 @@ async def ui_status(request):
 
 
 _JS = r'''"use strict";
-// GarminAI v0.8.7.2: one known staging client only; Neon validates the signed
+// GarminAI v0.8.7.3: one known staging client only; Neon validates the signed
 // query when handling authorization/consent. This browser does NOT verify sig.
 (() => {
   const root = document.querySelector('main[data-mode]');
@@ -245,10 +245,14 @@ _JS = r'''"use strict";
     return client;
   }
 
-  function resumeAtNeon() {
+  async function resumeAtNeon() {
     validateStagingRequest();
-    // If Neon cannot see its first-party session, repeated redirects back to
-    // this page must NOT become an unbounded login/authorize loop.
+    // Do not re-start /oauth2/authorize here. On the Render top-level site,
+    // the fetch-visible Neon session can be partitioned from the first-party
+    // session seen after navigating directly to Neon. A fresh authorize would
+    // redirect to login again. Neon documents oauth2.continue({selected:true})
+    // for login pages, even after the social sign-in callback.
+    // Fail closed if the same signed state is repeatedly resumed.
     try {
       const last = JSON.parse(sessionStorage.getItem(resumeKey) || 'null');
       if (last?.state === signedValue('state') && Number.isFinite(last.at) &&
@@ -259,14 +263,14 @@ _JS = r'''"use strict";
       if (e?.message === 'OAUTH_SESSION_LOOP') throw e;
       throw Error('BROWSER_STORAGE_UNAVAILABLE');
     }
-    // A new top-level authorization request is independently validated by Neon.
-    // No selected/created/postLogin flag is falsely asserted in /oauth2/continue.
-    const url = new URL(base + '/oauth2/authorize');
-    for (const name of ['response_type','client_id','redirect_uri','scope','resource','state',
-                        'code_challenge','code_challenge_method','prompt'])
-      url.searchParams.set(name, signedValue(name));
-    note('Session established; Neon will validate the authorization request…');
-    location.assign(url.href);
+    note('Session established; asking Neon to continue the signed OAuth request…');
+    // Selected:true is the Neon documented login-page continuation flag, NOT
+    // a grant of access. Neon checks the signature/session and determines the
+    // next step (usually Consent); our page cannot issue an OAuth code.
+    const result = await api('/oauth2/continue', {method:'POST', body:{
+      selected:true, oauth_query:signed.toString()
+    }});
+    await followProviderReply(result);
   }
 
   async function followProviderReply(result) {
@@ -305,7 +309,7 @@ _JS = r'''"use strict";
             throw Error('CALLBACK_UNEXPECTED');
         }
         const loggedIn = await checkSession(hasVerifier ? verifier : undefined);
-        if (loggedIn) return resumeAtNeon();
+        if (loggedIn) return await resumeAtNeon();
         if (hasVerifier) throw Error('CALLBACK_INVALID');
         signin.disabled = false;
         note('Google sign-in available. Neon validates the authorization request; no access is granted on this page.');

@@ -78,7 +78,9 @@ class OAuthUiTests(unittest.TestCase):
     def test_javascript_never_does_unverified_grants_or_user_token_storage(self):
         self.assertNotIn("/oauth2/public-client-prelogin",_JS)
         self.assertIn("/oauth2/public-client?client_id=",_JS)
-        self.assertIn("/oauth2/authorize",_JS)
+        self.assertIn("/oauth2/continue",_JS)
+        self.assertNotIn("const url = new URL(base + '/oauth2/authorize')", _JS)
+        self.assertIn("selected:true, oauth_query:signed.toString()", _JS)
         self.assertIn("expectedClient",_JS)
         self.assertIn("expectedCallback",_JS)
         self.assertIn('oauth_query:signed.toString()',_JS)
@@ -97,7 +99,7 @@ class OAuthUiTests(unittest.TestCase):
         self.assertIn('DemoBearerGate(mcp_asgi)',source)
         self.assertIn('Route("/auth/oauth-ui/status", ui_status)',source)
         self.assertIn('Route("/auth/oauth-ui.js", ui_js)',source)
-        self.assertIn('"version":"0.8.7.2"',source)
+        self.assertIn('"version":"0.8.7.3"',source)
 
 
 def call_src():

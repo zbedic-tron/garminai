@@ -96,6 +96,11 @@ korenska datoteka `V085_START_HERE_SR.md` u ZIP paketu.
 
 Zamena opcione Neon `public-client-prelogin` provere staging tokom; ograničenje na konfigurisani testni klijent i callback, Neon `oauth2/authorize`, autentifikovani `oauth2/public-client` i konačnu Neon proveru `oauth_query` prilikom consent-a. Vidi `docs/V0871_OAUTH_LOGIN_CONSENT_PATCH_SR.md`. Nema produkcionog MCP/Garmin pristupa.
 
-## v0.8.7.2 — Signed Neon ba_param query parser
+## v0.8.7.3 — Signed Neon ba_param query parser
 
 Fix for Neon OAuth signed redirects which intentionally include `ba_param=ba_param`. See `docs/V0872_NEON_SIGNED_QUERY_BA_PARAM_FIX_SR.md`. Staging only; MCP tools and Garmin live data remain disabled.
+
+
+## v0.8.7.3 — Neon OAuth continue, bez authorize petlje
+
+Prijavljen korisnik na Login strani sada nastavlja originalni potpisani zahtev preko `POST /oauth2/continue` (`selected:true`), umesto da se ponovo kreira `/oauth2/authorize` koji je dovodio do `OAUTH_SESSION_LOOP`. Sačuvane provere potpisa od strane Neona, `state` i sigurnosni staging režim. Vidi `docs/V0873_OAUTH_CONTINUE_SESSION_LOOP_FIX_SR.md`.
