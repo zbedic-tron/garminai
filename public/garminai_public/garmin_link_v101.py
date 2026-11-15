@@ -1,4 +1,4 @@
-"""v1.0.2 Garmin OAuth account-link staging, separated from all demo MCP data.
+"""v1.0.3 Garmin OAuth account-link staging, separated from all demo MCP data.
 
 Operator opt-in, browser confirmation, short-lived authenticated encrypted ticket,
 PKCE S256, browser-bound callback state, durable one-time replay lock and
@@ -18,7 +18,7 @@ from urllib.parse import urlencode, parse_qs, urlsplit, urlunsplit, parse_qsl
 import httpx
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.exceptions import InvalidTag
-from starlette.responses import HTMLResponse, JSONResponse, RedirectResponse
+from starlette.responses import HTMLResponse, JSONResponse
 
 from .garmin_oauth import (create_authorization_attempt, build_authorization_url,
                             exchange_code, refresh_access, garmin_user_id, garmin_permissions)
@@ -44,12 +44,12 @@ _SAFE_HEADERS = {
 _HTML_HEADERS = dict(_SAFE_HEADERS, **{'Content-Security-Policy':
     "default-src 'none'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; "
     "style-src 'unsafe-inline'; form-action 'self'; script-src 'none'"})
-# Chromium can apply form-action policy to the final location of a 303
-# redirected POST form. Allow *only* Garmin's OAuth host for the browser
-# confirmation page; the generic/error pages keep same-origin-only CSP.
-_CONNECT_HEADERS = dict(_HTML_HEADERS, **{'Content-Security-Policy':
-    "default-src 'none'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; "
-    "style-src 'unsafe-inline'; form-action 'self' https://connect.garmin.com; script-src 'none'"})
+# Keep forms restricted to the same origin. Following an HTML form's 303
+# response through Garmin's 302/307 redirects can trigger Chrome's form-action
+# protection on a later Garmin login host. After a successful same-origin POST
+# we end the form navigation with a 200 response, then navigate separately via
+# a no-script HTML refresh to the strictly validated official Garmin URL.
+_CONNECT_HEADERS = _HTML_HEADERS
 
 
 def configuration(env=None):
@@ -269,6 +269,30 @@ async def start_page(request):
     return response
 
 
+def _garmin_navigation_page(url: str):
+    '''End form POST on our origin; navigate separately without broad CSP grants.
+
+    The authorization URL contains an encrypted, short-lived state; never log it,
+    cache this response, or allow an untrusted redirect destination.
+    '''
+    import html
+    parsed = urlsplit(url)
+    if (parsed.scheme != 'https' or parsed.hostname != 'connect.garmin.com' or
+            parsed.port is not None or parsed.username is not None or
+            parsed.password is not None or parsed.path != '/oauth2Confirm' or
+            parsed.fragment):
+        raise ValueError('INVALID_GARMIN_REDIRECT')
+    target = html.escape(url, quote=True)
+    body = f'''<!doctype html><html lang="sr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="refresh" content="0;url={target}">
+<title>Garmin povezivanje</title>
+<style>body{{background:#0b1220;color:#fff;font:16px system-ui;display:grid;place-items:center;min-height:100vh}}main{{background:#172538;border:1px solid #40516b;border-radius:14px;padding:32px;max-width:560px}}a{{color:#79e3d8}}</style></head><body>
+<main><h1>Preusmeravanje na Garmin…</h1><p>Ako se Garmin stranica ne otvori automatski,
+<a rel="noreferrer" href="{target}">nastavi na Garmin Connect</a>.</p></main></body></html>'''
+    return HTMLResponse(body, status_code=200, headers=_HTML_HEADERS)
+
+
 async def authorize(request):
     if not configuration()['enabled']: return _page('Povezivanje nije aktivirano.',503)
     if request.headers.get('content-type','').split(';')[0].lower() != 'application/x-www-form-urlencoded':
@@ -292,7 +316,7 @@ async def authorize(request):
         url=urlunsplit((parts.scheme,parts.netloc,parts.path,urlencode(fields),''))
     except (ValueError,KeyError,TypeError,PermissionError):
         return _page('Nije moguće pokrenuti OAuth. Otvori nov link iz ChatGPT-a.',400)
-    response=RedirectResponse(url,status_code=303,headers=_SAFE_HEADERS)
+    response=_garmin_navigation_page(url)
     response.set_cookie(OAUTH_COOKIE,browser,max_age=600,httponly=True,secure=True,samesite='lax',path='/')
     response.delete_cookie(COOKIE,path='/')
     return response

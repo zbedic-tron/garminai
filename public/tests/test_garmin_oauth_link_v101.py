@@ -7,7 +7,7 @@ import time
 import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
-from urllib.parse import urlsplit,parse_qs
+from urllib.parse import urlsplit,parse_qs,unquote
 from starlette.applications import Starlette
 from starlette.routing import Route
 from starlette.testclient import TestClient
@@ -20,6 +20,14 @@ from garminai_public.garmin_link_v101 import (
     status_from_context, _permission_list, CALLBACK,
 )
 from garminai_public.garmin_oauth import GARMIN_TOKEN_URL
+
+def _handoff_url(page):
+    import re, html
+    target = re.search(r'href="(https://connect\.garmin\.com/oauth2Confirm\?[^"]+)"',page)
+    if not target:
+        raise AssertionError('Missing official Garmin fallback navigation')
+    return html.unescape(target.group(1))
+
 
 K=secrets.token_bytes(32)
 GOOD={'GARMINAI_GARMIN_LINK_STAGING_ENABLED':'1','GARMIN_CLIENT_ID':'mock-garmin-client',
@@ -104,9 +112,10 @@ class TestGarminLink(unittest.TestCase):
                 self.assertEqual(client.post('/garmin/oauth/authorize').status_code,503)
                 self.assertEqual(client.get('/garmin/oauth/callback').status_code,503)
 
-    def test_browser_confirmation_csp_allows_only_official_garmin_redirect(self):
-        # Chromium enforces form-action on 303 redirects from submitted forms.
-        # Do not weaken generic error-page CSP or allow any other remote form host.
+    def test_browser_confirmation_ends_form_post_before_garmin_navigation(self):
+        # Chromium enforces form-action throughout redirected form submissions.
+        # End POST with a 200 HTML response; a meta refresh starts fresh navigation.
+        # Keep the form same-origin-only and forbid scripts/external resources.
         app=Starlette(routes=[Route('/garmin/oauth/connect',start_page),
             Route('/garmin/oauth/authorize',authorize,methods=['POST'])])
         with patch.dict(os.environ,GOOD,clear=False):
@@ -115,21 +124,36 @@ class TestGarminLink(unittest.TestCase):
                 page=client.get('/garmin/oauth/connect',params={'ticket':ticket})
                 self.assertEqual(page.status_code,200)
                 csp=page.headers['content-security-policy']
-                self.assertIn("form-action 'self' https://connect.garmin.com;",csp)
+                self.assertIn("form-action 'self';",csp)
                 self.assertNotIn('https://connectapi.garmin.com',csp)
                 self.assertIn("script-src 'none'",csp)
                 self.assertIn('frame-ancestors',csp)
-                # A successful browser POST still goes to Garmin via 303.
+                # Successful browser POST ends on our origin with an HTML handoff.
                 import re
                 csrf=re.search(r'name="csrf" value="([^"]+)"',page.text).group(1)
                 rsp=client.post('/garmin/oauth/authorize',data={'csrf':csrf,'ticket':ticket},follow_redirects=False)
-                self.assertEqual(rsp.status_code,303)
-                self.assertEqual(urlsplit(rsp.headers['location']).hostname,'connect.garmin.com')
+                self.assertEqual(rsp.status_code,200)
+                self.assertNotIn('location',rsp.headers)
+                self.assertIn('http-equiv="refresh"',rsp.text)
+                self.assertIn('href="https://connect.garmin.com/oauth2Confirm?',rsp.text)
+                self.assertIn("form-action 'self';",rsp.headers['content-security-policy'])
+                self.assertEqual(rsp.headers['cache-control'],'no-store, max-age=0')
+                self.assertEqual(rsp.headers['referrer-policy'],'no-referrer')
                 # Invalid confirmation returns an error page with stricter CSP.
                 bad=client.post('/garmin/oauth/authorize',data={'csrf':'bad','ticket':ticket})
                 self.assertEqual(bad.status_code,400)
                 self.assertIn("form-action 'self';",bad.headers['content-security-policy'])
                 self.assertNotIn('https://connect.garmin.com',bad.headers['content-security-policy'])
+
+    def test_handoff_rejects_untrusted_navigation_target(self):
+        from garminai_public.garmin_link_v101 import _garmin_navigation_page
+        for target in ('https://evil.example/oauth2Confirm',
+                       'https://connect.garmin.com.evil.example/oauth2Confirm',
+                       'http://connect.garmin.com/oauth2Confirm',
+                       'https://connect.garmin.com/other',
+                       'https://user@connect.garmin.com/oauth2Confirm'):
+            with self.subTest(target=target), self.assertRaises(ValueError):
+                _garmin_navigation_page(target)
 
     def test_browser_confirmation_then_garmin_redirect_no_network_or_secrets(self):
         app=Starlette(routes=[Route('/garmin/oauth/connect',start_page),
@@ -145,8 +169,9 @@ class TestGarminLink(unittest.TestCase):
                 import re
                 csrf=re.search(r'name="csrf" value="([^"]+)"',start.text).group(1)
                 answer=client.post('/garmin/oauth/authorize',data={'csrf':csrf,'ticket':ticket},follow_redirects=False)
-                self.assertEqual(answer.status_code,303)
-                url=urlsplit(answer.headers['location'])
+                self.assertEqual(answer.status_code,200)
+                self.assertNotIn('location',answer.headers)
+                url=urlsplit(_handoff_url(answer.text))
                 self.assertEqual(url.hostname,'connect.garmin.com')
                 p=parse_qs(url.query)
                 self.assertEqual(p['redirect_uri'],[CALLBACK])
@@ -204,8 +229,8 @@ class TestGarminLink(unittest.TestCase):
                 import re
                 csrf=re.search(r'name="csrf" value="([^"]+)"',page.text).group(1)
                 redirect=client.post('/garmin/oauth/authorize',data={'csrf':csrf,'ticket':ticket},follow_redirects=False)
-                self.assertEqual(redirect.status_code,303)
-                state=parse_qs(urlsplit(redirect.headers['location']).query)['state'][0]
+                self.assertEqual(redirect.status_code,200)
+                state=parse_qs(urlsplit(_handoff_url(redirect.text)).query)['state'][0]
                 result=client.get('/garmin/oauth/callback',params={'state':state,'code':'FAKE_CODE_123456'})
                 self.assertEqual(result.status_code,200)
                 self.assertIn('povezan',result.text)
