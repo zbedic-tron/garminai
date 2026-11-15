@@ -1,8 +1,16 @@
 # GarminAI Public — projektni dosije za nastavak u novom ChatGPT razgovoru
 
-**Aktuelna pripremljena verzija: v1.1.3 (2026-11-15).** Ovaj dokument je operativno stanje i istorija projekta, a nije dokaz da je nova verzija instalirana. Prvo pogledati `/healthz` i `/garmin/integration/status` na Renderu.
+**Aktuelna pripremljena verzija: v1.1.4 (2026-11-15).** Ovaj dokument je operativno stanje i istorija projekta, a nije dokaz da je nova verzija instalirana. Prvo pogledati `/healthz` i `/garmin/integration/status` na Renderu.
 
 > **Za novi razgovor:** „Nastavi projekat GarminAI Public prema `public/docs/PROJECT_CONTINUITY_SR.md` i aktuelnom GitHub kodu. Sačuvaj politiku 0 €, bezbednosne granice i diferencijalno pakovanje ispod 100 fajlova. Najpre proveri aktuelni `/healthz`, a zatim sledeći otvoreni korak.“
+
+## Poslednje potvrđeno stanje i v1.1.4
+
+- **v1.1.3 sintetički Neon E2E test: PASS prijavljen od korisnika** nakon prethodne greške `STORAGE_NOT_READY`. `committed_first_or_existing:true`, `duplicate_prevented:true`, korisnički identitet potvrđen. Ne znamo da li je red upisan prvi put ili je već postojao. Ne dokazuje dva realna ChatGPT korisnika ili Garmin webhook.
+- **Operator akcija posle PASS:** vratiti `GARMINAI_PUSH_REHEARSAL_STAGING_ENABLED=0` i sačuvati u Render Environment.
+- **v1.1.4 pripremljen (deployment još nije potvrđen):** nova read-only ruta `GET /garmin/ingress/readiness`, koja otvoreno prijavljuje `BLOCKED`. Proverava da operator zna za Render Free cold-start i neproveren proxy/IP trust, bez preuzimanja ijednog podatka. Svi javni push POST-ovi ostaju 503, MCP ostaje demonstracioni, povezan Garmin OAuth se ne menja. Nema novih SQL migracija, plaćenih servisa ili tajni.
+- **Za sutrašnji nastavak:** prvo `/healthz` (očekuje se 1.1.4), zatim `/garmin/ingress/readiness`, `/garmin/integration/status`; ne uključivati Garmin Endpoint Configuration. Naći realno bezbednu i besplatnu arhitekturu *pre* dalje integracije; ako nije izvodljivo, zadržati demo i istražiti zvanično dozvoljene alternative.
+- Javni Render izvori: `https://render.com/docs/free` i `https://render.com/docs/inbound-ip-rules` potvrđuju ograničenja Free compute i Service inbound-IP pravila. To nije izveštaj o Garmin paketima i ne dokazuje identitet pošiljaoca.
 
 ## 1) Korisnički cilj i nepromenljiva pravila
 
@@ -37,9 +45,9 @@
 - v1.1.0: migracija `004_garmin_activity_push_rehearsal.sql` za `garmin_push_receipts` prošla; RLS + FORCE RLS, SELECT/INSERT `t`, UPDATE/DELETE `f`.
 - v1.1.1: migracija `005_garmin_push_inbox_offline.sql` za `garmin_push_inbox` prošla; RLS/FORCE RLS/SELECT/INSERT `t`, UPDATE/DELETE `f`. Render log `GARMINAI_DB_CHECK: PASS (OK)` potvrđen tri puta. Javni Garmin push ostao `503`.
 - v1.1.2: `run_synthetic_push_rehearsal` je u stvarnom MCP pozivu vratio `STORAGE_NOT_READY` (neuspeh testa, bez potvrđenog upisa). Izvorni kod imao je dva `SELECT ... FOR UPDATE` nad tabelama na kojima `garminai_app` namerno nema UPDATE privilegiju, što je snažan kandidat za uzrok.
-- v1.1.3: minimalni ispravni SELECT upiti bez row-locking klauzula, dok transakciona idempotencija ostaje `INSERT ... ON CONFLICT DO NOTHING`, sa bezbednom proverom sadržaja postojećeg reda. Test fake PostgreSQL sada eksplicitno odbija SELECT row-locking komande koje zahtevaju UPDATE pravo. **Stvarni Neon PASS tek treba ponoviti.**
+- v1.1.3: obični RLS SELECT bez row-locking; transakcioni `INSERT ... ON CONFLICT DO NOTHING`. **Stvarni Neon sintetički PASS je zatim prijavljen od korisnika**, uz sprečen duplikat i bez prenosa stvarnih Garmin aktivnosti.
 
-**Privilegije v1.1.3:** nikad ne dodavati `GRANT UPDATE` aplikacionoj ulozi kako bi sintetički test prošao; to bi proširilo napadnu površinu. Ako i v1.1.3 vrati `STORAGE_NOT_READY`, prvo proveriti preostali SQL i Read-only diagnostics, bez prikazivanja tajni i bez širenja privilegija.
+**Privilegije (zadržano u v1.1.4):** nikad ne dodavati `GRANT UPDATE` aplikacionoj ulozi kako bi sintetički test prošao; to bi proširilo napadnu površinu. Ako i v1.1.3 vrati `STORAGE_NOT_READY`, prvo proveriti preostali SQL i Read-only diagnostics, bez prikazivanja tajni i bez širenja privilegija.
 
 ## 4) Bezbednosna i pravna ograničenja — ne zaobilaziti
 

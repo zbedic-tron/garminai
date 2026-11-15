@@ -160,7 +160,7 @@ def integration_status(env=None):
     from .garmin_link_v101 import configuration as link_config
     link = link_config(env)
     return {
-        'version':'1.1.3', 'phase':'SYNTHETIC_PUSH_POSTGRES_E2E_REHEARSAL',
+        'version':'1.1.4', 'phase':'PUSH_INGRESS_OPERATIONAL_READINESS_OFFLINE',
         'garmin_starter_delivery':'PUSH_ONLY',
         'oauth_connect_enabled':link['enabled'],
         'oauth_link_requested':link['requested'],
@@ -183,5 +183,5 @@ def integration_status(env=None):
             'replay_safe_durable_ingestion_and_deletion',
             'garmin_terms_and_ai_data_sharing_review',
         ],
-        'next':'Synthetic-only authenticated MCP rehearsal is available by explicit confirmation and operator opt-in. Keep all Garmin push endpoints disabled.',
+        'next':'Synthetic Neon PASS has been reported; Garmin live ingress remains blocked by sender provenance and Free-host cold-start risks. Keep all Garmin push endpoints disabled.',
     }

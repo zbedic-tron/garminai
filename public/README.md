@@ -1,3 +1,9 @@
+# GarminAI Public v1.1.4 — read-only Garmin push readiness audit
+
+**Javni Garmin push ostaje blokiran (503).** Nova samo-čitanje ruta `GET /garmin/ingress/readiness` izlaže otvorene operativne prepreke, bez poverljivih Garmin podataka ili dokaza o autentičnosti pošiljaoca. Nema novih SQL migracija ni podešavanja koja omogućavaju realni ingest. Detalji: `docs/V114_PUSH_READINESS_AUDIT_SR.md`.
+
+**v1.1.3 sintetički Neon test:** korisnik je prijavio PASS; nakon testa vratiti `GARMINAI_PUSH_REHEARSAL_STAGING_ENABLED=0`.
+
 # GarminAI Public v1.1.3 — sintetički Neon E2E test + kontinuitet projekta
 
 **v1.1.3 hotfix:** `STORAGE_NOT_READY` u sintetičkom MCP testu: uklonjeni su `SELECT ... FOR UPDATE` pozivi koji su zahtevali UPDATE privilegije neprivilegovane `garminai_app` uloge. Nema promene SQL migracija, RLS ili Garmin OAuth povezivanja. Pokrenuti isti opt-in sintetički test i vratiti Render flag na `0`. Vidi `V113_START_HERE_SR.md`.

@@ -1,0 +1,55 @@
+{
+  "version": "1.1.4",
+  "base": "1.1.3",
+  "mode": "differential",
+  "files": [
+    {
+      "path": "V114_START_HERE_SR.md",
+      "sha256": "153e40a85419a59da7a80c4c04f95a6688012f37904e72e5f0f86aa3066168a9"
+    },
+    {
+      "path": "public/garminai_public/garmin_push_readiness_v114.py",
+      "sha256": "1751a7d797bf200b5f4f2adc4cf6eaa0f71ba4a0219eb42cf1d3c38dd51835ed"
+    },
+    {
+      "path": "public/garminai_public/http_server.py",
+      "sha256": "286063f754bc128d07d96b04298d82702389b002ac933e7797c727d583973f32"
+    },
+    {
+      "path": "public/garminai_public/garmin_activity_staging.py",
+      "sha256": "d8dc7a2a7bf53d2858fa46652a960e489740af6ad408731d5586e424e28934d9"
+    },
+    {
+      "path": "public/tests/test_garmin_push_readiness_v114.py",
+      "sha256": "279a2562c6bffb8090eff7c0c8c81d8eb42487dee5cca156255be1da02d1d94a"
+    },
+    {
+      "path": "public/tests/test_oauth_ui_v086.py",
+      "sha256": "9b5dab4810e072dea1cde48dce9d84eb77a6dc65a8527bc6a98a6486f1805c88"
+    },
+    {
+      "path": "public/tests/test_auth_staging_v0843.py",
+      "sha256": "50f3afb4c5605f9d77509ff38001b4d4e9213fe5a16dfec2985d2462d14bfaee"
+    },
+    {
+      "path": "public/tests/test_garmin_activity_staging_v100.py",
+      "sha256": "4dd0d0901fc89388f8abf8d502c04761a3ae12118f4d4b88b99718d811738767"
+    },
+    {
+      "path": "public/tests/test_neon_auth_v083.py",
+      "sha256": "98f8ac03e07ad69bc7b31d54b2089e73680af0c2b7316855a9cca9b9ef0239ba"
+    },
+    {
+      "path": "public/README.md",
+      "sha256": "64aeeb3a24c477e3362446df0ca2773ae2a72c43f5163fb05fe4d9b2d1a4851f"
+    },
+    {
+      "path": "public/docs/V114_PUSH_READINESS_AUDIT_SR.md",
+      "sha256": "cca99e681c4b4ae10f8483ac6e131b42d670844ad14021f17891be951885b308"
+    },
+    {
+      "path": "public/docs/PROJECT_CONTINUITY_SR.md",
+      "sha256": "791cb60c3a2ba4f18e3cdd58f0f105cbe707ec54a50787c8e7b49a39f533d50e"
+    }
+  ]
+}
