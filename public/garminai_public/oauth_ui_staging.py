@@ -1,4 +1,4 @@
-"""GarminAI v0.8.8: managed Neon OAuth for one registered staging client.
+"""GarminAI v0.8.9: managed Neon OAuth for one registered staging client.
 
 No client-side signature verification is claimed. Neon verifies signed oauth_query
 when consenting and validates authorize requests. Actual MCP/Garmin stays disabled.
@@ -107,7 +107,7 @@ async def ui_status(request):
     from .mcp_oauth_gateway import configured as mcp_demo_configured
     demo_tools = mcp_demo_configured()['enabled']
     return JSONResponse({
-        "version":"0.8.8", "mode":"STAGING_ONLY",
+        "version":"0.8.9", "mode":"STAGING_ONLY",
         "oauth_ui_staging_enabled": c["enabled"],
         "oauth_ui_config_errors": c["issues"] if c["requested"] else [],
         "provider_enabled_by_this_app": False,
@@ -119,7 +119,7 @@ async def ui_status(request):
 
 
 _JS = r'''"use strict";
-// GarminAI v0.8.8: one known staging client only; Neon validates the signed
+// GarminAI v0.8.9: one known staging client only; Neon validates the signed
 // query when handling authorization/consent. This browser does NOT verify sig.
 (() => {
   const root = document.querySelector('main[data-mode]');

@@ -1,5 +1,5 @@
 "use strict";
-// GarminAI v0.8.8: one known staging client only; Neon validates the signed
+// GarminAI v0.8.9: one known staging client only; Neon validates the signed
 // query when handling authorization/consent. This browser does NOT verify sig.
 (() => {
   const root = document.querySelector('main[data-mode]');

@@ -1,4 +1,4 @@
-"""v0.8.8: isolated, opt-in Neon JWT bearer gate for fictional MCP tools.
+"""v0.8.9: isolated, opt-in Neon JWT bearer gate for fictional MCP tools.
 
 No Garmin connectivity and no real athlete data. A separate operator opt-in is
 required; the legacy /mcp demo bearer gate and database identity are unchanged.
@@ -14,6 +14,7 @@ from starlette.responses import JSONResponse
 
 from .oauth_e2e_staging import _check_jwt, configuration, UnsafeOAuthResponse
 from .oauth_resource_staging import build_contract
+from .demo_tenant import principal_from_claims
 
 _TOKEN = re.compile(r'^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$')
 _CACHE_SECONDS = 60
@@ -130,15 +131,21 @@ class StagingOAuthGate:
             await _reply(send, 503, {'error':'signing_keys_unavailable'})
             return
         try:
-            _check_jwt(token, keys, issuer=opt['oauth']['issuer'],
-                       resource=opt['oauth']['resource'], client_id=opt['oauth']['client_id'])
-        except UnsafeOAuthResponse:
+            claims = _check_jwt(token, keys, issuer=opt['oauth']['issuer'],
+                                resource=opt['oauth']['resource'],
+                                client_id=opt['oauth']['client_id'], return_claims=True)
+            principal = principal_from_claims(claims)
+        except (UnsafeOAuthResponse, ValueError, KeyError):
             await _reply(send, 401, {'error':'invalid_token'}, challenge)
             return
         # Token has been verified; do not propagate it to the demo tool runtime.
         new_scope = dict(scope)
         new_scope['headers'] = [(k,v) for k,v in scope.get('headers',())
                                 if k.lower() != b'authorization']
+        # Trusted per-request principal is an ASGI scope attribute, not an
+        # HTTP header or caller-controlled tool argument. MCP v1 preserves the
+        # Request in its tool Context; fail closed if it cannot be recovered.
+        new_scope['garminai.oauth_staging_principal'] = principal
         new_scope['path'] = '/mcp'
         new_scope['raw_path'] = b'/mcp'
         new_scope['root_path'] = ''

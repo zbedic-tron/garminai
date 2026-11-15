@@ -91,7 +91,7 @@ async def status(_request):
     from .mcp_oauth_gateway import configured
     opt = configured()
     return JSONResponse({
-        "version": "0.8.8", "mode": "STAGING_ONLY",
+        "version": "0.8.9", "mode": "STAGING_ONLY",
         "oauth_provider_enabled_by_this_app": False,
         "mcp_oauth_staging_enabled": config.complete,
         "mcp_authenticated_tools_enabled": False,

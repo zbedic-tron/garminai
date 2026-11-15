@@ -195,8 +195,18 @@ class TestRoutedGatewayAndProbe(unittest.TestCase):
             seen.append((scope['path'],rpc.get('method')))
             method=rpc.get('method')
             if method=='initialize': result={'protocolVersion':'2025-03-26','capabilities':{},'serverInfo':{}}
-            elif method=='tools/list': result={'tools':[{'name':'get_sync_status'}, {'name':'get_activities'}]}
-            elif method=='tools/call': result={'content':[{'type':'text','text':'{"mode":"DEMO_ONLY"}'}]}
+            elif method=='tools/list': result={'tools':[{'name':'get_sync_status'}, {'name':'get_activities'}, {'name':'get_demo_activity_details'}]}
+            elif method=='tools/call':
+                rpc_args=rpc.get('params',{})
+                name=rpc_args.get('name')
+                if name=='get_sync_status': content={'mode':'DEMO_ONLY','garmin_oauth':'NOT_CONNECTED'}
+                elif name=='get_activities': content={'mode':'DEMO_ONLY','isolation':'TOKEN_SUBJECT_SCOPED','activities':[{'id':'demo-own-1'},{'id':'demo-own-2'}]}
+                elif name=='get_demo_activity_details':
+                    rid=rpc_args.get('arguments',{}).get('activity_id')
+                    if rid=='demo-own-1': content={'mode':'DEMO_ONLY','activity':{'id':'demo-own-1'}}
+                    else: content={'mode':'DEMO_ONLY','error':'unknown_demo_activity'}
+                else: content={'mode':'INVALID'}
+                result={'content':[{'type':'text','text':json.dumps(content)}]}
             else: result={'error':'unknown'}
             payload=json.dumps({'jsonrpc':'2.0','id':rpc.get('id'),'result':result}).encode()
             await send({'type':'http.response.start','status':200,
@@ -208,5 +218,5 @@ class TestRoutedGatewayAndProbe(unittest.TestCase):
         with patch.dict(sys.modules, {'garminai_public.http_server':module}):
             with patch.dict('os.environ',ENV,clear=True):
                 result=asyncio.run(_probe_demo_mcp(token,{'origin':'https://'+HOST}))
-        self.assertEqual(result,'PASS')
-        self.assertEqual([x[1] for x in seen],['initialize','tools/list','tools/call'])
+        self.assertTrue(all(result.values()),result)
+        self.assertEqual([x[1] for x in seen], ['initialize','tools/list']+['tools/call']*4)

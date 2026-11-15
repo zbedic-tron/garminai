@@ -1,5 +1,5 @@
 "use strict";
-// GarminAI v0.8.8 public-client OAuth diagnostic, no token or code display/storage.
+// GarminAI v0.8.9 public-client OAuth diagnostic, no token or code display/storage.
 (() => {
   const root = document.querySelector('main[data-oauth-test]');
   if (!root) return;
@@ -80,7 +80,7 @@
       if (response.ok && result?.result === 'OAUTH_STAGING_VERIFIED' &&
           result?.mcp_authorized === false && result?.garmin_access === false) {
         if (result?.mcp_demo_probe === 'PASS')
-          note('PASS: Neon OAuth + PKCE + verified JWT + authenticated MCP demo tools/list. Only fictional data; live MCP/Garmin access remains disabled.');
+          note('PASS: Neon OAuth + PKCE + verified JWT + MCP tools/list and tools/call (status, activities, owned details) + foreign-ID denial. Fictional data only; real MCP/Garmin access disabled.');
         else if (result?.mcp_demo_probe === 'FAILED')
           note('PARTIAL PASS: Neon OAuth verified; authenticated MCP demo probe failed. No live Garmin data or production MCP access.');
         else

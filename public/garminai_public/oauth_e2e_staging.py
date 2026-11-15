@@ -1,4 +1,4 @@
-"""v0.8.8 isolated, opt-in OAuth authorization-code+PKCE E2E smoke test.
+"""v0.8.9 isolated, opt-in OAuth authorization-code+PKCE E2E smoke test.
 
 NO real Garmin access, no MCP authorization, no token storage, no client secret.
 Never return OAuth codes, provider tokens, user identifiers or raw errors.
@@ -20,7 +20,7 @@ from starlette.responses import HTMLResponse, JSONResponse, Response
 from .auth_staging_poc import validate_staging_auth_url
 from .oauth_resource_staging import build_contract
 
-_VERSION = '0.8.8'
+_VERSION = '0.8.9'
 _CLIENT = re.compile(r'^[A-Za-z0-9._~:/-]{8,512}$')
 _CODE = re.compile(r'^[A-Za-z0-9._~+-]{12,2048}$')
 _B64URL_43 = re.compile(r'^[A-Za-z0-9_-]{43}$')
@@ -129,7 +129,7 @@ class UnsafeOAuthResponse(Exception):
         super().__init__(code)
 
 
-def _check_jwt(access_token, keys, *, issuer, resource, client_id):
+def _check_jwt(access_token, keys, *, issuer, resource, client_id, return_claims=False):
     # This smoke test requires a resource-bound JWT; opaque tokens are fail-closed.
     if not isinstance(access_token, str) or not 64 <= len(access_token) <= 8192:
         raise UnsafeOAuthResponse('ACCESS_TOKEN_NOT_JWT')
@@ -165,56 +165,104 @@ def _check_jwt(access_token, keys, *, issuer, resource, client_id):
     granted = set(scope.split()) if isinstance(scope, str) else set(scope) if isinstance(scope, list) and all(isinstance(s, str) for s in scope) else set()
     if 'openid' not in granted or claims.get('azp') != client_id or not isinstance(claims.get('sub'), str) or not claims['sub']:
         raise UnsafeOAuthResponse('JWT_CLAIMS_INVALID')
-    return True
+    return claims if return_claims else True
+
+
+def _rpc_payload(response, expected_id):
+    """Parse an MCP JSON-mode response, reject errors and ambiguous shapes."""
+    if response.status_code != 200 or len(response.content) > 64 * 1024:
+        raise ValueError('MCP_HTTP_OR_SIZE')
+    data = response.json()
+    if (not isinstance(data, dict) or data.get('jsonrpc') != '2.0'
+            or data.get('id') != expected_id or 'error' in data):
+        raise ValueError('MCP_RPC_INVALID')
+    result = data.get('result')
+    if not isinstance(result, dict) or result.get('isError') is True:
+        raise ValueError('MCP_TOOL_ERROR')
+    return result
+
+
+def _tool_output(result):
+    """Only JSON object tool output is accepted, no raw response echo."""
+    if isinstance(result.get('structuredContent'), dict):
+        return result['structuredContent']
+    blocks = result.get('content')
+    if not isinstance(blocks, list) or len(blocks) != 1:
+        raise ValueError('MCP_TOOL_CONTENT')
+    block = blocks[0]
+    if not isinstance(block, dict) or block.get('type') != 'text':
+        raise ValueError('MCP_TOOL_CONTENT')
+    obj = __import__('json').loads(block.get('text', ''))
+    if not isinstance(obj, dict):
+        raise ValueError('MCP_TOOL_CONTENT')
+    return obj
 
 
 async def _probe_demo_mcp(access_token, c):
-    """In-process, one-time JSON-RPC test: no OAuth token leaves the server.
+    """Real in-process MCP JSON-RPC roundtrip for tools/list and three tools.
 
-    Uses the real ASGI OAuth gate and the real staged MCP transport, with the
-    same ephemeral access token obtained in the PKCE exchange. It never calls
-    Garmin or writes the token to storage.
+    Returns only boolean check flags; neither token, subject nor activities are
+    ever returned to the test browser. Any failure is a PARTIAL PASS, not proof.
     """
+    checks = {'tools_list':False,'get_sync_status':False,'get_activities':False,
+              'get_demo_activity_details':False,'cross_owner_denied':False}
     try:
         from .http_server import app
         transport = httpx.ASGITransport(app=app)
-        headers = {
-            'Authorization': 'Bearer ' + access_token,
-            'Accept': 'application/json, text/event-stream',
-            'Content-Type': 'application/json',
-            'MCP-Protocol-Version': '2025-03-26',
-        }
+        headers = {'Authorization': 'Bearer ' + access_token,
+                   'Accept': 'application/json, text/event-stream',
+                   'Content-Type': 'application/json',
+                   'MCP-Protocol-Version': '2025-03-26'}
         async with httpx.AsyncClient(transport=transport, base_url=c['origin'],
                                      timeout=8.0, follow_redirects=False) as cli:
-            init = await cli.post('/mcp-oauth-staging', headers=headers, json={
-                'jsonrpc':'2.0', 'id':1, 'method':'initialize',
-                'params':{'protocolVersion':'2025-03-26', 'capabilities':{},
-                          'clientInfo':{'name':'GarminAI private E2E diagnostic','version':'0.8.8'}}
-            })
-            if init.status_code != 200 or 'result' not in init.json():
-                return 'FAILED'
-            result = await cli.post('/mcp-oauth-staging', headers=headers, json={
-                'jsonrpc':'2.0','id':2,'method':'tools/list','params':{}
-            })
-            if result.status_code != 200:
-                return 'FAILED'
-            body = result.json()
-            tools = body.get('result', {}).get('tools', [])
-            names = {t.get('name') for t in tools if isinstance(t, dict)}
-            if names != {'get_sync_status','get_activities'}:
-                return 'FAILED'
-            called = await cli.post('/mcp-oauth-staging', headers=headers, json={
-                'jsonrpc':'2.0','id':3,'method':'tools/call',
-                'params':{'name':'get_sync_status','arguments':{}}
-            })
-        if called.status_code != 200:
-            return 'FAILED'
-        # Do not echo the content of the tool response; verify that the
-        # fictional-data marker is present and return only an aggregate bit.
-        payload = called.json()
-        return 'PASS' if 'DEMO_ONLY' in str(payload.get('result', {})) else 'FAILED'
-    except (httpx.HTTPError, ValueError, TypeError, RuntimeError, ImportError):
-        return 'FAILED'
+            async def rpc(number, method, params):
+                r = await cli.post('/mcp-oauth-staging', headers=headers,
+                    json={'jsonrpc':'2.0', 'id':number, 'method':method, 'params':params})
+                return _rpc_payload(r, number)
+            _rpc_payload(await cli.post('/mcp-oauth-staging', headers=headers,
+                json={'jsonrpc':'2.0','id':1,'method':'initialize',
+                      'params':{'protocolVersion':'2025-03-26','capabilities':{},
+                                'clientInfo':{'name':'GarminAI staging E2E diagnostic',
+                                              'version':'0.8.9'}}}), 1)
+            listing = await rpc(2,'tools/list',{})
+            names = {item.get('name') for item in listing.get('tools', [])
+                     if isinstance(item, dict)}
+            if names != {'get_sync_status','get_activities','get_demo_activity_details'}:
+                return checks
+            checks['tools_list'] = True
+            sync = _tool_output(await rpc(3,'tools/call',
+                               {'name':'get_sync_status','arguments':{}}))
+            if sync.get('mode') != 'DEMO_ONLY' or sync.get('garmin_oauth') != 'NOT_CONNECTED':
+                return checks
+            checks['get_sync_status'] = True
+            activities = _tool_output(await rpc(4,'tools/call',
+                                {'name':'get_activities','arguments':{'limit':2}}))
+            rows = activities.get('activities')
+            if (activities.get('mode') != 'DEMO_ONLY' or
+                    activities.get('isolation') != 'TOKEN_SUBJECT_SCOPED' or
+                    not isinstance(rows, list) or len(rows) != 2 or
+                    any(not isinstance(row,dict) or not isinstance(row.get('id'),str)
+                        for row in rows)):
+                return checks
+            checks['get_activities'] = True
+            owned_id = rows[0]['id']
+            detail = _tool_output(await rpc(5,'tools/call',
+                      {'name':'get_demo_activity_details','arguments':{'activity_id':owned_id}}))
+            if (detail.get('mode') != 'DEMO_ONLY' or
+                not isinstance(detail.get('activity'),dict) or
+                detail['activity'].get('id') != owned_id):
+                return checks
+            checks['get_demo_activity_details'] = True
+            # Forged/foreign IDs are forbidden. The actual two-user isolation
+            # test with two distinct signed subjects runs offline in unit tests.
+            other = _tool_output(await rpc(6,'tools/call',
+                      {'name':'get_demo_activity_details',
+                       'arguments':{'activity_id':'demo-0000000000000000-demo-run-001'}}))
+            checks['cross_owner_denied'] = (other ==
+                {'mode':'DEMO_ONLY','error':'unknown_demo_activity'})
+    except (httpx.HTTPError, ValueError, TypeError, RuntimeError, ImportError, KeyError):
+        return checks
+    return checks
 
 
 async def _exchange_and_verify(code, verifier, c):
@@ -252,16 +300,17 @@ async def _exchange_and_verify(code, verifier, c):
     # bearer or verified subject is returned to the browser or persisted.
     from .mcp_oauth_gateway import configured as mcp_demo_configured
     probe = 'NOT_ENABLED'
+    checks = {}
     if mcp_demo_configured()['enabled']:
         try:
-            probe = await asyncio.wait_for(_probe_demo_mcp(access_token, c), timeout=12)
+            checks = await asyncio.wait_for(_probe_demo_mcp(access_token, c), timeout=20)
+            probe = 'PASS' if checks and all(checks.values()) else 'FAILED'
         except Exception:
-            # Staging MCP failure must never leak an OAuth token or mask
-            # the completed PKCE verification as an unhandled 500.
-            probe = 'FAILED' 
+            # Staging MCP failures never leak token nor mask verified PKCE.
+            probe = 'FAILED'
     return {'result':'OAUTH_STAGING_VERIFIED', 'authorization_code_exchanged': True,
             'jwt_signature_issuer_audience_scope_client_verified': True,
-            'mcp_demo_probe': probe,
+            'mcp_demo_probe': probe, 'mcp_demo_checks': checks,
             'mcp_authorized': False, 'garmin_access': False}
 
 
@@ -309,7 +358,7 @@ async def exchange(request):
 
 
 _JS = r'''"use strict";
-// GarminAI v0.8.8 public-client OAuth diagnostic, no token or code display/storage.
+// GarminAI v0.8.9 public-client OAuth diagnostic, no token or code display/storage.
 (() => {
   const root = document.querySelector('main[data-oauth-test]');
   if (!root) return;
@@ -390,7 +439,7 @@ _JS = r'''"use strict";
       if (response.ok && result?.result === 'OAUTH_STAGING_VERIFIED' &&
           result?.mcp_authorized === false && result?.garmin_access === false) {
         if (result?.mcp_demo_probe === 'PASS')
-          note('PASS: Neon OAuth + PKCE + verified JWT + authenticated MCP demo tools/list. Only fictional data; live MCP/Garmin access remains disabled.');
+          note('PASS: Neon OAuth + PKCE + verified JWT + MCP tools/list and tools/call (status, activities, owned details) + foreign-ID denial. Fictional data only; real MCP/Garmin access disabled.');
         else if (result?.mcp_demo_probe === 'FAILED')
           note('PARTIAL PASS: Neon OAuth verified; authenticated MCP demo probe failed. No live Garmin data or production MCP access.');
         else

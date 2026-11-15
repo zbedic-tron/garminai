@@ -1,8 +1,13 @@
-# GarminAI Public v0.8.8 — Neon OAuth Protected MCP Demo (opt-in)
+# GarminAI Public v0.8.9 — Neon OAuth Protected MCP Demo (opt-in)
 
-A separate, flag-controlled `/mcp-oauth-staging` serves **two fictional-data MCP
-read-only tools** only after validating a signed, resource-bound Neon access JWT.
-`/mcp` keeps its original static demo bearer gate. No Garmin account access.
+A separate, flag-controlled `/mcp-oauth-staging` serves **three fictional-data,
+read-only MCP tools** after validating a signed, resource-bound Neon access JWT.
+`tools/call` tests include subject-scoped activity IDs and cross-owner denial.
+`/mcp` keeps its original static demo bearer gate; no Garmin account access.
+See [V089_MCP_TOOLS_CALL_ISOLATION_SR.md](docs/V089_MCP_TOOLS_CALL_ISOLATION_SR.md).
+
+## Previous v0.8.8 authenticated demo tool listing
+
 See [V088_NEON_MCP_AUTH_STAGING_SR.md](docs/V088_NEON_MCP_AUTH_STAGING_SR.md).
 
 # GarminAI Public v0.8.7.4 — Consent / public-client metadata fix

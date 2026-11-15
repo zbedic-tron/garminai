@@ -1,17 +1,25 @@
-"""v0.8.8: isolated authenticated MCP surface; fictional data ONLY."""
-from mcp.server.fastmcp import FastMCP
+"""v0.8.9: read-only MCP staging tools, fictional subject-scoped data only."""
+from mcp.server.fastmcp import Context, FastMCP
 from . import core
+from .demo_tenant import principal_from_context, activities_for, detail_for
 
 staging_mcp = FastMCP('GarminAI OAuth Staging — Fictional Data', stateless_http=True, json_response=True)
 
 
 @staging_mcp.tool()
-def get_sync_status() -> dict:
-    """Read DEMO_ONLY status. No real Garmin or personal account data."""
+def get_sync_status(ctx: Context) -> dict:
+    """Read DEMO_ONLY status. Requires verified Neon identity; no real Garmin."""
+    principal_from_context(ctx)
     return core.status()
 
 
 @staging_mcp.tool()
-def get_activities(limit: int = 5) -> dict:
-    """Read up to 10 fictional demo activities. Never accesses real athlete data."""
-    return core.activities(limit=max(1, min(int(limit), 10)))
+def get_activities(ctx: Context, limit: int = 5) -> dict:
+    """Read 1–10 fictional activities, isolated by signed OAuth subject."""
+    return activities_for(principal_from_context(ctx), limit)
+
+
+@staging_mcp.tool()
+def get_demo_activity_details(activity_id: str, ctx: Context) -> dict:
+    """Read fictional activity ONLY if its ID belongs to this token subject."""
+    return detail_for(principal_from_context(ctx), activity_id)
