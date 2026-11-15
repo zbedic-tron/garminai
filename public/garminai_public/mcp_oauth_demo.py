@@ -38,3 +38,38 @@ def get_demo_activity_details(activity_id: str, ctx: Context) -> dict:
     whether an activity exists for a different account. Read-only.
     """
     return detail_for(principal_from_context(ctx), activity_id)
+
+
+@staging_mcp.tool()
+def get_garmin_connection_link(ctx: Context) -> dict:
+    """Request a private 10-minute Garmin Connect authorization link.
+
+    Only works when the operator has explicitly enabled separate Garmin linking
+    and durable encrypted Neon storage. Opening the link requires explicit browser
+    confirmation and Garmin's own consent. No Garmin activities are downloaded
+    or shared with ChatGPT; Garmin push remains disabled.
+    """
+    from .garmin_link_v101 import connect_link_from_context
+    return connect_link_from_context(ctx)
+
+
+@staging_mcp.tool()
+def get_garmin_connection_status(ctx: Context) -> dict:
+    """Check Garmin account-link status only; never reveal userId or tokens.
+
+    Connection does not mean real Garmin data can be read here.
+    """
+    from .garmin_link_v101 import status_from_context
+    return status_from_context(ctx)
+
+
+@staging_mcp.tool()
+async def disconnect_garmin_account(confirmation: str, ctx: Context) -> dict:
+    """Revoke this user's linked Garmin authorization and delete local Garmin data.
+
+    Mutating operation: the user must explicitly request disconnection and
+    provide the literal confirmation DISCONNECT_GARMIN. Requires authenticated
+    Neon subject. Does NOT affect fictional demo training activities.
+    """
+    from .garmin_link_v101 import disconnect_from_context
+    return await disconnect_from_context(ctx, confirmation)

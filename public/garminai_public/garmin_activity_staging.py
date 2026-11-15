@@ -157,10 +157,14 @@ def prepare_for_owner(binding: TrustedOwnerBinding, items: tuple[StagedActivity,
 
 def integration_status(env=None):
     """Public-safe state: no credential presence, identifiers, or secrets."""
+    from .garmin_link_v101 import configuration as link_config
+    link = link_config(env)
     return {
-        'version':'1.0.0', 'phase':'GARMIN_ACTIVITY_API_STAGING',
+        'version':'1.0.1', 'phase':'GARMIN_ACTIVITY_API_STAGING',
         'garmin_starter_delivery':'PUSH_ONLY',
-        'oauth_connect_enabled':False,
+        'oauth_connect_enabled':link['enabled'],
+        'oauth_link_requested':link['requested'],
+        'oauth_link_config_issues':link['issues'],
         'push_ingestion_enabled':False,
         'real_garmin_data_stored':False,
         'mcp_real_garmin_data_enabled':False,

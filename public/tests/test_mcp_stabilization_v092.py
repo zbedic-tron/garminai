@@ -193,12 +193,15 @@ class StabilizedMCP(unittest.TestCase):
         p=Path(__file__).resolve().parents[1]/'garminai_public/mcp_oauth_demo.py'
         root=ast.parse(p.read_text(encoding='utf-8'))
         tools={node.name:ast.get_docstring(node) for node in root.body
-               if isinstance(node,ast.FunctionDef) and any(
+               if isinstance(node,(ast.FunctionDef,ast.AsyncFunctionDef)) and any(
                  isinstance(dec,ast.Call) and isinstance(dec.func,ast.Attribute)
                  and dec.func.attr=='tool' for dec in node.decorator_list)}
-        self.assertEqual(set(tools),{'get_sync_status','get_activities','get_demo_activity_details'})
-        for name,description in tools.items():
+        self.assertEqual(set(tools),{'get_sync_status','get_activities','get_demo_activity_details','get_garmin_connection_link','get_garmin_connection_status','disconnect_garmin_account'})
+        for name in ('get_sync_status','get_activities','get_demo_activity_details'):
+            description=tools[name]
             self.assertIn('read-only',description.lower(),name)
             self.assertIn('fictional',description.lower(),name)
+        for name in ('get_garmin_connection_link','get_garmin_connection_status','disconnect_garmin_account'):
+            self.assertIn('Garmin',tools[name],name)
 
 if __name__=='__main__': unittest.main()

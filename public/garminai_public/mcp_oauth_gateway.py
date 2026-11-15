@@ -15,6 +15,7 @@ from starlette.responses import JSONResponse
 from .oauth_e2e_staging import _check_jwt, configuration, UnsafeOAuthResponse
 from .oauth_resource_staging import build_contract
 from .demo_tenant import principal_from_claims
+from .identity import principal_from_verified_neon_claims
 
 _TOKEN = re.compile(r'^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$')
 _CACHE_SECONDS = 60
@@ -174,6 +175,7 @@ class StagingOAuthGate:
             if claims is None:
                 raise UnsafeOAuthResponse('INVALID_CLIENT_OR_TOKEN')
             principal = principal_from_claims(claims)
+            durable_principal = principal_from_verified_neon_claims(claims)
         except (UnsafeOAuthResponse, ValueError, KeyError):
             await _reply(send, 401, {'error':'invalid_token'}, invalid_challenge)
             return
@@ -185,6 +187,7 @@ class StagingOAuthGate:
         # HTTP header or caller-controlled tool argument. MCP v1 preserves the
         # Request in its tool Context; fail closed if it cannot be recovered.
         new_scope['garminai.oauth_staging_principal'] = principal
+        new_scope['garminai.verified_garmin_principal'] = durable_principal
         new_scope['path'] = '/mcp'
         new_scope['raw_path'] = b'/mcp'
         new_scope['root_path'] = ''

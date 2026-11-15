@@ -1,3 +1,12 @@
+# GarminAI Public v1.0.1 — Garmin OAuth account linking (opt-in)
+
+Diferencijalna nadogradnja v1.0.0: zaseban, inicijalno isključen Garmin
+Connect OAuth2 PKCE tok za identitet potvrđen Neon JWT-om; browser potvrda,
+jednokratni trajni state, RLS i AES-GCM šifrovanje tokena. Aktivnosti i
+Garmin push **ostaju isključeni**. Pročitaj `docs/V101_GARMIN_OAUTH_LINK_SR.md`.
+
+---
+
 # GarminAI Public v1.0.0 — Garmin Activity API (bezbedni staging)
 
 Nadogradnja na stabilni v0.9.2 ChatGPT MCP demo: lokalni parser Garmin

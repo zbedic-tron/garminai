@@ -20,7 +20,7 @@ from starlette.responses import HTMLResponse, JSONResponse, Response
 from .auth_staging_poc import validate_staging_auth_url
 from .oauth_resource_staging import build_contract
 
-_VERSION = '1.0.0'
+_VERSION = '1.0.1'
 _CLIENT = re.compile(r'^[A-Za-z0-9._~:/-]{8,512}$')
 _CODE = re.compile(r'^[A-Za-z0-9._~+-]{12,2048}$')
 _B64URL_43 = re.compile(r'^[A-Za-z0-9_-]{43}$')
@@ -234,7 +234,10 @@ async def _probe_demo_mcp(access_token, c):
             listing = await rpc(2,'tools/list',{})
             names = {item.get('name') for item in listing.get('tools', [])
                      if isinstance(item, dict)}
-            if names != {'get_sync_status','get_activities','get_demo_activity_details'}:
+            if (not {'get_sync_status','get_activities','get_demo_activity_details'}.issubset(names) or
+                    not names.issubset({'get_sync_status','get_activities','get_demo_activity_details',
+                                     'get_garmin_connection_link','get_garmin_connection_status',
+                                     'disconnect_garmin_account'})):
                 return checks
             checks['tools_list'] = True
             sync = _tool_output(await rpc(3,'tools/call',

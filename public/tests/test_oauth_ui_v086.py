@@ -99,7 +99,7 @@ class OAuthUiTests(unittest.TestCase):
         self.assertIn('DemoBearerGate(mcp_asgi)',source)
         self.assertIn('Route("/auth/oauth-ui/status", ui_status)',source)
         self.assertIn('Route("/auth/oauth-ui.js", ui_js)',source)
-        self.assertIn('"version":"0.9.1"',source)
+        self.assertIn('"version":"1.0.1"',source)
 
 
 def call_src():

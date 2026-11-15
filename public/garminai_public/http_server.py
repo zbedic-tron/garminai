@@ -1,4 +1,4 @@
-"""GarminAI Public v1.0.0: Garmin Activity staging (fail closed), Neon MCP demo unchanged."""
+"""GarminAI Public v1.0.1: Garmin OAuth link staging (fail closed), Neon MCP demo unchanged."""
 import os
 from contextlib import asynccontextmanager, AsyncExitStack
 from starlette.applications import Starlette
@@ -21,6 +21,7 @@ from .oauth_e2e_staging import status as oauth_e2e_status, start as oauth_e2e_st
 from .oauth_resource_staging import status as oauth_staging_status, metadata as oauth_staging_metadata
 from .chatgpt_staging import status as chatgpt_status, configuration as chatgpt_configuration
 from .garmin_http_staging import garmin_integration_status, garmin_push_disabled
+from .garmin_link_v101 import configuration as garmin_link_configuration, start_page as garmin_connect_page, authorize as garmin_connect_authorize, callback as garmin_link_callback
 
 hostname = os.environ.get("RENDER_EXTERNAL_HOSTNAME", "").strip()
 extra = os.environ.get("GARMINAI_ALLOWED_HOST", "").strip()
@@ -54,10 +55,10 @@ staging_mcp_asgi = staging_mcp.streamable_http_app()
 oauth_staging_gateway = StagingOAuthGate(staging_mcp_asgi)
 
 async def health(_request):
-    return JSONResponse({"status":"ok", "version":"1.0.0", "mode":"DEMO_ONLY", "garmin_oauth":"NOT_CONNECTED", "auth":"DEMO_BEARER_GATE"})
+    return JSONResponse({"status":"ok", "version":"1.0.1", "mode":"DEMO_ONLY", "garmin_oauth":"NOT_CONNECTED", "auth":"DEMO_BEARER_GATE"})
 
 async def index(_request):
-    return JSONResponse({"project":"GarminAI Public", "version":"1.0.0", "mode":"DEMO_ONLY", "message":"Only fictional activity data. MCP endpoint: /mcp"})
+    return JSONResponse({"project":"GarminAI Public", "version":"1.0.1", "mode":"DEMO_ONLY", "message":"Only fictional activity data. MCP endpoint: /mcp"})
 
 async def integration_readiness(_request):
     # Only configuration booleans; never values. Not an invitation to connect Garmin yet.
@@ -68,6 +69,8 @@ async def oauth_development_status(_request):
     return JSONResponse({**deployment_requirements(), **auth_configuration_status()}, headers={'cache-control': 'no-store'})
 
 async def garmin_callback_disabled(_request):
+    if garmin_link_configuration()['enabled']:
+        return await garmin_link_callback(_request)
     return JSONResponse({'status':'not_enabled','reason':'Garmin OAuth is staged until durable user identity, encrypted token storage and consent controls are deployed'},status_code=503,headers={'cache-control':'no-store'})
 
 @asynccontextmanager
@@ -83,7 +86,7 @@ async def lifespan(_app):
         await stack.enter_async_context(staging_mcp.session_manager.run())
         yield
 
-app = Starlette(routes=[Route("/", index), Route("/healthz", health), Route("/integration/readiness", integration_readiness), Route("/auth/development-status", oauth_development_status), Route("/auth/oauth-ui/status", ui_status), Route("/auth/login", login_page), Route("/auth/staging/google", staging_login), Route("/auth/staging/google.js", staging_js), Route("/auth/consent", consent_page), Route("/auth/oauth-ui.js", ui_js), Route("/garmin/oauth/callback", garmin_callback_disabled), Route("/garmin/integration/status", garmin_integration_status),
+app = Starlette(routes=[Route("/", index), Route("/healthz", health), Route("/integration/readiness", integration_readiness), Route("/auth/development-status", oauth_development_status), Route("/auth/oauth-ui/status", ui_status), Route("/auth/login", login_page), Route("/auth/staging/google", staging_login), Route("/auth/staging/google.js", staging_js), Route("/auth/consent", consent_page), Route("/auth/oauth-ui.js", ui_js), Route("/garmin/oauth/callback", garmin_callback_disabled), Route("/garmin/oauth/connect", garmin_connect_page), Route("/garmin/oauth/authorize", garmin_connect_authorize, methods=["POST"]), Route("/garmin/integration/status", garmin_integration_status),
     Route("/garmin/push/activities", garmin_push_disabled, methods=["POST"]),
     Route("/garmin/push/activity-details", garmin_push_disabled, methods=["POST"]),
     Route("/garmin/push/activity-files", garmin_push_disabled, methods=["POST"]),

@@ -72,3 +72,28 @@ class DemoIdentityVerifier:
             return VerifiedPrincipal(claims.get('sub'),_MARKER)
         except (ValueError,UnicodeError,TypeError,KeyError,OverflowError) as exc:
             raise PermissionError('Invalid credential') from exc
+
+
+def principal_from_verified_neon_claims(claims):
+    """Called ONLY after the fixed-issuer JWT gate verifies signature, aud, azp, exp.
+
+    Produces a durable opaque tenant key, not the demo process-local identity.
+    Never trust this function with HTTP-supplied or unverified claims.
+    """
+    if not isinstance(claims,dict): raise PermissionError('VERIFIED_NEON_REQUIRED')
+    issuer, subject = claims.get('iss'), claims.get('sub')
+    if (not isinstance(issuer,str) or not 1<=len(issuer)<=512 or
+            not isinstance(subject,str) or not 1<=len(subject)<=256):
+        raise PermissionError('VERIFIED_NEON_REQUIRED')
+    opaque=hashlib.sha256(('garminai:v101:neon\x00'+issuer+'\x00'+subject).encode()).hexdigest()
+    return VerifiedPrincipal(opaque,_MARKER)
+
+
+def principal_from_sealed_link(subject):
+    """Only call after AES-GCM state decrypt+browser binding+TTL validation.
+
+    Never expose as an HTTP endpoint or call with arbitrary request parameters.
+    """
+    if not isinstance(subject,str) or not re.fullmatch('[a-f0-9]{64}',subject):
+        raise PermissionError('INVALID_SEALED_SUBJECT')
+    return VerifiedPrincipal(subject,_MARKER)

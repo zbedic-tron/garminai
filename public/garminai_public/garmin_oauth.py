@@ -14,7 +14,7 @@ from urllib.parse import urlencode
 import httpx
 
 GARMIN_AUTHORIZE_URL = 'https://connect.garmin.com/oauth2Confirm'
-GARMIN_TOKEN_URL = 'https://diauth.garmin.com/di-oauth2-service/oauth/token'
+GARMIN_TOKEN_URL = 'https://connectapi.garmin.com/di-oauth2-service/oauth/token'
 GARMIN_ID_URL = 'https://apis.garmin.com/wellness-api/rest/user/id'
 GARMIN_PERMISSIONS_URL = 'https://apis.garmin.com/wellness-api/rest/user/permissions'
 
