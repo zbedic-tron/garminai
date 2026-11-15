@@ -1,5 +1,5 @@
 "use strict";
-// GarminAI v0.8.7.3: one known staging client only; Neon validates the signed
+// GarminAI v0.8.7.4: one known staging client only; Neon validates the signed
 // query when handling authorization/consent. This browser does NOT verify sig.
 (() => {
   const root = document.querySelector('main[data-mode]');
@@ -126,9 +126,13 @@
     const client = result?.client ?? result;
     const id = client?.client_id ?? client?.clientId;
     if (id !== expectedClient || client?.disabled === true) throw Error('CLIENT_NOT_VERIFIED');
-    // If Neon includes registered redirect URIs, they must contain our exact callback.
+    // public-client is display metadata. Neon can return redirect_uris: []
+    // despite an actual registration (confirmed in Neon Console).
+    // Preserve rejection of malformed or explicitly mismatching nonempty lists;
+    // Neon remains authoritative for the signed request and redirect URI.
     const uris = client.redirect_uris ?? client.redirectUris;
-    if (uris !== undefined && (!Array.isArray(uris) || !uris.includes(expectedCallback)))
+    if (uris !== undefined &&
+        (!Array.isArray(uris) || (uris.length > 0 && !uris.includes(expectedCallback))))
       throw Error('CLIENT_NOT_VERIFIED');
     return client;
   }

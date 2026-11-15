@@ -136,6 +136,28 @@ function page({mode='consent', query=signedQuery(), active=true, reply, pending=
   const wrongRegisteredUri=page({reply:async p=>p.startsWith('/oauth2/public-client?')?
     {client_id:CLIENT,redirect_uris:['https://evil.test/cb']}:undefined});
   await flush();assert.equal(wrongRegisteredUri.element('allow').disabled,true);checks++;
+  // Actual Neon public-client response can omit registered redirect URI metadata
+  // despite registration in Console. This must not block explicit user consent.
+  const hiddenUris=page({reply:async p=>p.startsWith('/oauth2/public-client?')?
+    {client_id:CLIENT,client_name:'GarminAI OAuth E2E Test',redirect_uris:[]}:undefined});
+  await flush();
+  assert.equal(hiddenUris.element('allow').disabled,false);
+  assert.equal(hiddenUris.element('deny').disabled,false);
+  assert.equal(hiddenUris.element('client-name').textContent,'GarminAI OAuth E2E Test');
+  await hiddenUris.element('allow').click();await flush();
+  assert.equal(hiddenUris.navigations.length,1);
+  assert.equal(JSON.parse(hiddenUris.calls.find(x=>x.url.endsWith('/oauth2/consent')).opts.body).accept,true);checks++;
+
+  // A genuinely mismatched nonempty list and malformed response still fail closed.
+  const malformedUris=page({reply:async p=>p.startsWith('/oauth2/public-client?')?
+    {client_id:CLIENT,redirect_uris:'not-an-array'}:undefined});
+  await flush();assert.equal(malformedUris.element('allow').disabled,true);checks++;
+
+  // Some public-client versions do not include the field at all.
+  const absentUris=page({reply:async p=>p.startsWith('/oauth2/public-client?')?
+    {client_id:CLIENT,client_name:'No redirect URI metadata'}:undefined});
+  await flush();assert.equal(absentUris.element('allow').disabled,false);checks++;
+
 
   const approve=page(); await flush();
   assert.equal(approve.element('allow').disabled,false);

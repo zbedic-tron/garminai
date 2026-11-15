@@ -89,13 +89,13 @@ def assess_discovery(metadata: object, *, issuer: str) -> dict:
 async def status(_request):
     config = build_contract()
     return JSONResponse({
-        "version": "0.8.7.3", "mode": "STAGING_ONLY",
+        "version": "0.8.7.4", "mode": "STAGING_ONLY",
         "oauth_provider_enabled_by_this_app": False,
         "mcp_oauth_staging_enabled": config.complete,
         "mcp_authenticated_tools_enabled": False,
         "garmin_live_data_enabled": False,
         "configuration_issues": list(config.problems) if config.enabled else [],
-        "next": "Use the isolated v0.8.7.3 E2E test client; OAuth provider is managed in Neon Console and authenticated MCP tools remain disabled.",
+        "next": "Use the isolated v0.8.7.4 E2E test client; OAuth provider is managed in Neon Console and authenticated MCP tools remain disabled.",
     }, headers={"Cache-Control": "no-store"})
 
 

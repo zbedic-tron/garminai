@@ -1,4 +1,4 @@
-"""v0.8.7.3 isolated, opt-in OAuth authorization-code+PKCE E2E smoke test.
+"""v0.8.7.4 isolated, opt-in OAuth authorization-code+PKCE E2E smoke test.
 
 NO real Garmin access, no MCP authorization, no token storage, no client secret.
 Never return OAuth codes, provider tokens, user identifiers or raw errors.
@@ -20,7 +20,7 @@ from starlette.responses import HTMLResponse, JSONResponse, Response
 from .auth_staging_poc import validate_staging_auth_url
 from .oauth_resource_staging import build_contract
 
-_VERSION = '0.8.7.3'
+_VERSION = '0.8.7.4'
 _CLIENT = re.compile(r'^[A-Za-z0-9._~:/-]{8,512}$')
 _CODE = re.compile(r'^[A-Za-z0-9._~+-]{12,2048}$')
 _B64URL_43 = re.compile(r'^[A-Za-z0-9_-]{43}$')
@@ -247,7 +247,7 @@ async def exchange(request):
 
 
 _JS = r'''"use strict";
-// GarminAI v0.8.7.3 public-client OAuth diagnostic, no token or code display/storage.
+// GarminAI v0.8.7.4 public-client OAuth diagnostic, no token or code display/storage.
 (() => {
   const root = document.querySelector('main[data-oauth-test]');
   if (!root) return;

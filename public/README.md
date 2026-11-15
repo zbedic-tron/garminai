@@ -1,3 +1,7 @@
+# GarminAI Public v0.8.7.4 — Consent / public-client metadata fix
+
+Public OAuth client lookup may return `redirect_uris: []` despite a configured Neon callback. The UI now accepts the redacted empty metadata while keeping known-client, signed-request and provider-side redirect protections. See [V0874_NEON_CONSENT_CLIENT_METADATA_FIX_SR.md](docs/V0874_NEON_CONSENT_CLIENT_METADATA_FIX_SR.md).
+
 # GarminAI Public v0.8.7 — OAuth E2E browser smoke test
 
 Isolated public-client PKCE/S256 + callback + one-time server-side token validation, disabled by default. No real Garmin/MCP identity. See [V087_OAUTH_E2E_TEST_SR.md](docs/V087_OAUTH_E2E_TEST_SR.md).
