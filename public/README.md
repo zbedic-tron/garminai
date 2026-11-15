@@ -1,3 +1,7 @@
+# GarminAI Public v0.8.7 — OAuth E2E browser smoke test
+
+Isolated public-client PKCE/S256 + callback + one-time server-side token validation, disabled by default. No real Garmin/MCP identity. See [V087_OAUTH_E2E_TEST_SR.md](docs/V087_OAUTH_E2E_TEST_SR.md).
+
 # GarminAI Public v0.8.6 — OAuth Login & Consent STAGING (2026-11-15)
 
 Login i Consent UI rade samo kada se eksplicitno uključi zaseban staging prekidač i kada Neon verifikuje potpisani `oauth_query`. Podrazumevano je sve isključeno. **Neon OAuth Provider, MCP prava i Garmin podaci nisu uključeni.** Uputstvo: [V086_OAUTH_LOGIN_CONSENT_SR.md](docs/V086_OAUTH_LOGIN_CONSENT_SR.md).

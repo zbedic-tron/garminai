@@ -101,13 +101,13 @@ async def consent_page(request):
 async def ui_status(request):
     c = configuration()
     return JSONResponse({
-        "version":"0.8.6", "mode":"STAGING_ONLY",
+        "version":"0.8.7", "mode":"STAGING_ONLY",
         "oauth_ui_staging_enabled": c["enabled"],
         "oauth_ui_config_errors": c["issues"] if c["requested"] else [],
         "provider_enabled_by_this_app": False,
         "mcp_authenticated_tools_enabled": False,
         "garmin_live_data_enabled": False,
-        "next":"Verify Neon OAuth Provider public-client-prelogin, issuer, signing and callback in a controlled test before enabling OAuth flow.",
+        "next":"Verify signed Neon Login/Consent requests with the isolated v0.8.7 E2E test client; MCP/Garmin access is disabled.",
     }, headers={"Cache-Control":"no-store"})
 
 
