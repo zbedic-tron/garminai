@@ -67,7 +67,11 @@ class OfflinePostgresPushInbox:
                 if set(rows) != {'athletes','garmin_credentials','garmin_push_inbox'} or not all(
                         rls and forced for rls, forced in rows.values()):
                     raise PushStorageUnavailable('INBOX_SCHEMA_OR_RLS_NOT_READY')
-                cur.execute('SELECT garmin_user_id FROM garminai.athletes WHERE subject=%s FOR UPDATE',
+                # PostgreSQL SELECT ... FOR UPDATE needs UPDATE privilege. This app
+                # deliberately has only SELECT/INSERT; use an RLS-scoped read.
+                # Synthetic-only test: PK/FK + ON CONFLICT protect write integrity;
+                # real-time account revocation is a separate, still-blocked concern.
+                cur.execute('SELECT garmin_user_id FROM garminai.athletes WHERE subject=%s',
                             (binding.principal.subject,))
                 owner = cur.fetchone()
                 if not owner or not isinstance(owner[0], str) or not hmac.compare_digest(
@@ -89,8 +93,11 @@ class OfflinePostgresPushInbox:
                     if cur.fetchone() is not None:
                         enqueued += 1
                         continue
+                    # ON CONFLICT on (subject, activity_id) already serializes competing
+                    # inserts. A fresh SELECT sees the committed row without needing
+                    # SELECT FOR UPDATE (forbidden to least-privileged app role).
                     cur.execute("""SELECT payload_sha256,summary FROM garminai.garmin_push_inbox
-                        WHERE subject=%s AND activity_id=%s FOR UPDATE""",
+                        WHERE subject=%s AND activity_id=%s""",
                         (binding.principal.subject, activity.activity_id))
                     old = cur.fetchone()
                     if old is None:

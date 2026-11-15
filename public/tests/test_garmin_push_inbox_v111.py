@@ -56,6 +56,12 @@ class Ctx:
     def execute(self, query, params=None):
         q = ' '.join(query.lower().split())
         self.rows, self.one = [], None
+        # The real garminai_app role has SELECT and INSERT, not UPDATE.
+        # PostgreSQL SELECT FOR UPDATE / SHARE requires UPDATE privilege.
+        # Make this fake fail on such a query to catch privilege regressions.
+        if q.startswith('select ') and any(lock in q for lock in
+                (' for update', ' for share', ' for key share', ' for no key update')):
+            raise PermissionError('42501: insufficient_privilege (simulated)')
         if q.startswith('select current_user'):
             self.one = (self.db.role,)
         elif "select set_config('garminai.subject'" in q:
@@ -103,6 +109,16 @@ class InboxRehearsalTest(unittest.TestCase):
         binding = TrustedOwnerBinding(who,user)
         raw = json.dumps({'activities': rows}).encode()
         return binding, prepare_for_owner(binding,parse_activity_push(raw,'application/json'))
+
+    def test_minimal_role_can_read_insert_and_deduplicate_without_update(self):
+        # Synthetic rehearsal must pass with the same no-UPDATE policy as Neon.
+        self.assertFalse(hasattr(self.db, 'grant_update'))
+        binding,batch = self.batch(self.alice,'GARMIN_A',[fixture()])
+        first = self.store.enqueue_offline_verified_fixture(binding,batch)
+        replay = self.store.enqueue_offline_verified_fixture(binding,batch)
+        self.assertEqual((first.enqueued,first.duplicates),(1,0))
+        self.assertEqual((replay.enqueued,replay.duplicates),(0,1))
+        self.assertEqual(len(self.db.inbox),1)
 
     def test_enqueue_and_duplicate(self):
         binding,batch = self.batch(self.alice,'GARMIN_A',[fixture()])

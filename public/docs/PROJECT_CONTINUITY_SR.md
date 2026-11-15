@@ -1,6 +1,6 @@
 # GarminAI Public — projektni dosije za nastavak u novom ChatGPT razgovoru
 
-**Aktuelna pripremljena verzija: v1.1.2 (2026-11-15).** Ovaj dokument je operativno stanje i istorija projekta, a nije dokaz da je nova verzija instalirana. Prvo pogledati `/healthz` i `/garmin/integration/status` na Renderu.
+**Aktuelna pripremljena verzija: v1.1.3 (2026-11-15).** Ovaj dokument je operativno stanje i istorija projekta, a nije dokaz da je nova verzija instalirana. Prvo pogledati `/healthz` i `/garmin/integration/status` na Renderu.
 
 > **Za novi razgovor:** „Nastavi projekat GarminAI Public prema `public/docs/PROJECT_CONTINUITY_SR.md` i aktuelnom GitHub kodu. Sačuvaj politiku 0 €, bezbednosne granice i diferencijalno pakovanje ispod 100 fajlova. Najpre proveri aktuelni `/healthz`, a zatim sledeći otvoreni korak.“
 
@@ -36,7 +36,10 @@
 - v1.0.3: Garmin OAuth callback prikazao uspeh i MCP `get_garmin_connection_status` je vratio `linked:true, activities_access:false, ai_sharing:false`.
 - v1.1.0: migracija `004_garmin_activity_push_rehearsal.sql` za `garmin_push_receipts` prošla; RLS + FORCE RLS, SELECT/INSERT `t`, UPDATE/DELETE `f`.
 - v1.1.1: migracija `005_garmin_push_inbox_offline.sql` za `garmin_push_inbox` prošla; RLS/FORCE RLS/SELECT/INSERT `t`, UPDATE/DELETE `f`. Render log `GARMINAI_DB_CHECK: PASS (OK)` potvrđen tri puta. Javni Garmin push ostao `503`.
-- v1.1.2: pripremljen opt-in MCP test *stvarnog Neon transakcionog upisa jednog sintetičkog reda* i duplikata. **Lokalni testovi nisu dokaz realnog Neon PASS-a; tek treba primeniti i pokrenuti alat u korisničkom okruženju.**
+- v1.1.2: `run_synthetic_push_rehearsal` je u stvarnom MCP pozivu vratio `STORAGE_NOT_READY` (neuspeh testa, bez potvrđenog upisa). Izvorni kod imao je dva `SELECT ... FOR UPDATE` nad tabelama na kojima `garminai_app` namerno nema UPDATE privilegiju, što je snažan kandidat za uzrok.
+- v1.1.3: minimalni ispravni SELECT upiti bez row-locking klauzula, dok transakciona idempotencija ostaje `INSERT ... ON CONFLICT DO NOTHING`, sa bezbednom proverom sadržaja postojećeg reda. Test fake PostgreSQL sada eksplicitno odbija SELECT row-locking komande koje zahtevaju UPDATE pravo. **Stvarni Neon PASS tek treba ponoviti.**
+
+**Privilegije v1.1.3:** nikad ne dodavati `GRANT UPDATE` aplikacionoj ulozi kako bi sintetički test prošao; to bi proširilo napadnu površinu. Ako i v1.1.3 vrati `STORAGE_NOT_READY`, prvo proveriti preostali SQL i Read-only diagnostics, bez prikazivanja tajni i bez širenja privilegija.
 
 ## 4) Bezbednosna i pravna ograničenja — ne zaobilaziti
 
@@ -47,11 +50,11 @@
 - Garminovi poverljivi partner PDF-ovi i tekstovi ostaju van javnog GitHub-a. Materijali su pregledani u prethodnom razgovoru: `Start Guide 2.0`, `Activity API 2.1`, `License Agreement Rev H`.
 - Ne uključivati u Garmin API Tools `Enabled`/`On Hold`, ni `GARMINAI_GARMIN_PUSH_ENABLED=1`, niti real MCP ingestion bez provere autentifikacije, brisanja, retencije i garminovih pravila.
 
-## 5) Trenutna v1.1.2 instalacija i provera
+## 5) Trenutna v1.1.3 instalacija i provera
 
-1. Primeniti mali ZIP v1.1.2 preko postojećeg `public/` foldera, bez brisanja drugih fajlova; GitHub commit i Render deployment.
-2. `/healthz → version: 1.1.2`, `/garmin/integration/status → push_ingestion_enabled:false, verified_live_ingress_enabled:false, mcp_real_garmin_data_enabled:false`.
-3. Postojeće Neon migracije `001`–`005` su već izvršene i proverene; **nema nove SQL migracije** za v1.1.2.
+1. Primeniti mali ZIP v1.1.3 preko postojećeg `public/` foldera, bez brisanja drugih fajlova; GitHub commit i Render deployment.
+2. `/healthz → version: 1.1.3`, `/garmin/integration/status → push_ingestion_enabled:false, verified_live_ingress_enabled:false, mcp_real_garmin_data_enabled:false`.
+3. Postojeće Neon migracije `001`–`005` su već izvršene i proverene; **nema nove SQL migracije** za v1.1.3.
 4. U Render Environment dodati `GARMINAI_PUSH_REHEARSAL_STAGING_ENABLED=1` samo za kontrolisani sintetički test; ne menjati `DATABASE_URL` niti Garmin ključeve. Nakon testiranja vratiti na `0` i sačuvati.
 5. U ChatGPT plugin Settings → Refresh tools; očekivati dodatni sedmi alat `run_synthetic_push_rehearsal`. Pozvati sa `confirmation: "RUN_SYNTHETIC_REHEARSAL"`. Rezultat `PASS` potvrđuje za *taj jedan povezani Neon korisnički nalog* tranzakcioni upis i ponovno slanje duplikata u stvarnoj Neon bazi. Ne dokazuje Garmin sender auth, mrežni webhook ili višekorisnički real test.
 6. Po potrebi proveriti samo broj sintetičkih redova u Neon SQL Editoru: `SELECT count(*) FROM garminai.garmin_push_inbox WHERE activity_id = 'GARMINAI_SYNTHETIC_V112';` Ne objavljivati subject/garmin_user_id, tokene, ni payload.

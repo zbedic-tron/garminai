@@ -1,8 +1,10 @@
-# GarminAI Public v1.1.2 — sintetički Neon E2E test + kontinuitet projekta
+# GarminAI Public v1.1.3 — sintetički Neon E2E test + kontinuitet projekta
+
+**v1.1.3 hotfix:** `STORAGE_NOT_READY` u sintetičkom MCP testu: uklonjeni su `SELECT ... FOR UPDATE` pozivi koji su zahtevali UPDATE privilegije neprivilegovane `garminai_app` uloge. Nema promene SQL migracija, RLS ili Garmin OAuth povezivanja. Pokrenuti isti opt-in sintetički test i vratiti Render flag na `0`. Vidi `V113_START_HERE_SR.md`.
 
 **START:** [`docs/PROJECT_CONTINUITY_SR.md`](docs/PROJECT_CONTINUITY_SR.md) za potpun projektni kontekst i nastavak u novom razgovoru. 
 
-**v1.1.2:** novi opt-in MCP alat `run_synthetic_push_rehearsal` trajno testira SAMO jedan fikcionalni inbox red po verifikovanom korisniku, bez Garmin API zahteva i bez AI pristupa stvarnim aktivnostima. Sve javne Garmin push rute ostaju zaključane (`503`). Aktivacija: `GARMINAI_PUSH_REHEARSAL_STAGING_ENABLED=1` samo tokom sintetičkog testa; posle vratiti na `0`. Uputstvo: `V112_START_HERE_SR.md` iz ZIP-a.
+**v1.1.3:** novi opt-in MCP alat `run_synthetic_push_rehearsal` trajno testira SAMO jedan fikcionalni inbox red po verifikovanom korisniku, bez Garmin API zahteva i bez AI pristupa stvarnim aktivnostima. Sve javne Garmin push rute ostaju zaključane (`503`). Aktivacija: `GARMINAI_PUSH_REHEARSAL_STAGING_ENABLED=1` samo tokom sintetičkog testa; posle vratiti na `0`. Uputstvo: `V112_START_HERE_SR.md` iz ZIP-a.
 
 ---
 
