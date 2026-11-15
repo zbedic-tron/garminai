@@ -1,3 +1,19 @@
+# GarminAI Public v1.0.0 — Garmin Activity API (bezbedni staging)
+
+Nadogradnja na stabilni v0.9.2 ChatGPT MCP demo: lokalni parser Garmin
+Activity push primera, provera izolacije korisnika i javno čitljiv status
+`/garmin/integration/status`. **Stvarni Garmin OAuth i push ingestion su i dalje
+ISKLJUČENI** dok ne budu potvrđeni Garmin webhook authentication protokol,
+proverena korisnička veza i pravila čuvanja podataka. Nikako ne unositi
+`/garmin/push/...` u Garmin Endpoint Configuration tokom ove verzije.
+
+Za korake instalacije i poznata ograničenja pogledaj
+[`docs/V100_GARMIN_PUSH_STAGING_SR.md`](docs/V100_GARMIN_PUSH_STAGING_SR.md)
+i `V100_START_HERE_SR.md` iz ZIP-a. Bez novih tajnih ključeva, migracija,
+plaćenih servisa ili promene privatnog ChatGPT plugina.
+
+---
+
 # GarminAI Public v0.8.9 — Neon OAuth Protected MCP Demo (opt-in)
 
 A separate, flag-controlled `/mcp-oauth-staging` serves **three fictional-data,

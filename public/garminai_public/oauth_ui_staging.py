@@ -1,4 +1,4 @@
-"""GarminAI v0.9.2: managed Neon OAuth for exactly allowlisted staging clients.
+"""GarminAI v1.0.0: managed Neon OAuth for exactly allowlisted staging clients.
 
 No client-side signature verification is claimed. Neon verifies signed oauth_query
 when consenting and validates authorize requests. Actual MCP/Garmin stays disabled.
@@ -122,7 +122,7 @@ async def ui_status(request):
     from .mcp_oauth_gateway import configured as mcp_demo_configured
     demo_tools = mcp_demo_configured()['enabled']
     return JSONResponse({
-        "version":"0.9.2", "mode":"STAGING_ONLY",
+        "version":"1.0.0", "mode":"STAGING_ONLY",
         "oauth_ui_staging_enabled": c["enabled"],
         "oauth_ui_config_errors": c["issues"] if c["requested"] else [],
         "provider_enabled_by_this_app": False,
