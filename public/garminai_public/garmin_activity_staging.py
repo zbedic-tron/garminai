@@ -160,7 +160,7 @@ def integration_status(env=None):
     from .garmin_link_v101 import configuration as link_config
     link = link_config(env)
     return {
-        'version':'1.0.3', 'phase':'GARMIN_ACTIVITY_API_STAGING',
+        'version':'1.1.0', 'phase':'GARMIN_PUSH_DURABLE_REHEARSAL',
         'garmin_starter_delivery':'PUSH_ONLY',
         'oauth_connect_enabled':link['enabled'],
         'oauth_link_requested':link['requested'],
@@ -169,6 +169,8 @@ def integration_status(env=None):
         'real_garmin_data_stored':False,
         'mcp_real_garmin_data_enabled':False,
         'parser_offline_rehearsal':'activities_summary_only',
+        'durable_offline_rehearsal_ready_after_migration':True,
+        'garmin_sender_authentication_verified':False,
         'blocked_until':[
             'official_push_sender_authentication_verified',
             'verified_neon_subject_to_garmin_user_link',
@@ -176,5 +178,5 @@ def integration_status(env=None):
             'replay_safe_durable_ingestion_and_deletion',
             'garmin_terms_and_ai_data_sharing_review',
         ],
-        'next':'Do not enable any Endpoint Configuration destination yet.',
+        'next':'Apply 004 SQL migration, then keep all Garmin Endpoint Configuration destinations disabled pending verified sender authentication.',
     }

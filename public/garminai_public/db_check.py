@@ -9,8 +9,8 @@ from .postgres_store import validate_database_url
 
 TABLES = frozenset({'athletes', 'activities', 'garmin_credentials', 'ai_consent'})
 POLICIES = frozenset({'athletes_owner', 'activities_owner', 'credentials_owner', 'consent_owner'})
-OPTIONAL_TABLES = frozenset({'oauth_attempts','garmin_oauth_used_states'})
-OPTIONAL_POLICIES = frozenset({'oauth_attempts_owner','garmin_oauth_used_owner'})
+OPTIONAL_TABLES = frozenset({'oauth_attempts','garmin_oauth_used_states','garmin_push_receipts'})
+OPTIONAL_POLICIES = frozenset({'oauth_attempts_owner','garmin_oauth_used_owner','garmin_push_receipts_owner'})
 
 @dataclass(frozen=True)
 class CheckResult:
@@ -59,7 +59,7 @@ def check_database(database_url=None, *, connection_factory=None):
                 cur.execute('''SELECT policyname, cmd FROM pg_policies
                                WHERE schemaname = 'garminai' ''')
                 policies = cur.fetchall()
-                if not (POLICIES | ({'oauth_attempts_owner'} if 'oauth_attempts' in {r[0] for r in rows} else set()) | ({'garmin_oauth_used_owner'} if 'garmin_oauth_used_states' in {r[0] for r in rows} else set())).issubset({r[0] for r in policies}) or any(
+                if not (POLICIES | ({'oauth_attempts_owner'} if 'oauth_attempts' in {r[0] for r in rows} else set()) | ({'garmin_oauth_used_owner'} if 'garmin_oauth_used_states' in {r[0] for r in rows} else set()) | ({'garmin_push_receipts_owner'} if 'garmin_push_receipts' in {r[0] for r in rows} else set())).issubset({r[0] for r in policies}) or any(
                     cmd != 'ALL' for name, cmd in policies if name in POLICIES
                 ):
                     return CheckResult(False, 'POLICY_MISMATCH')

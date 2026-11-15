@@ -1,4 +1,6 @@
-# GarminAI Public v1.0.3 — Garmin OAuth account linking (opt-in)
+# GarminAI Public v1.1.0 — Garmin push durable rehearsal (offline only)
+
+**v1.1.0:** dodata isključivo offline trajna proba Garmin Activity push JSON događaja sa RLS i evidencijom duplikata. Javni Garmin push, stvarni MCP podaci i AI sharing OSTAJU ISKLJUČENI. Detalji: `docs/V110_PUSH_REHEARSAL_SR.md`.
 
 Diferencijalna nadogradnja v1.0.0: zaseban, inicijalno isključen Garmin
 Connect OAuth2 PKCE tok za identitet potvrđen Neon JWT-om; browser potvrda,
