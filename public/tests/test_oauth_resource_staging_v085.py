@@ -80,6 +80,6 @@ class StagingOAuthTests(unittest.TestCase):
         from pathlib import Path
         code=(Path(__file__).parents[1]/'garminai_public'/'http_server.py').read_text()
         self.assertIn('DemoBearerGate(mcp_asgi)',code)
-        self.assertIn('Route("/mcp-oauth-staging", oauth_staging_stub',code)
+        self.assertIn('Route("/mcp-oauth-staging", oauth_staging_gateway',code)
 
 if __name__=='__main__': unittest.main()

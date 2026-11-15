@@ -1,5 +1,5 @@
 "use strict";
-// GarminAI v0.8.7 public-client OAuth diagnostic, no token or code display/storage.
+// GarminAI v0.8.8 public-client OAuth diagnostic, no token or code display/storage.
 (() => {
   const root = document.querySelector('main[data-oauth-test]');
   if (!root) return;
@@ -78,8 +78,14 @@
       });
       const result=await response.json();
       if (response.ok && result?.result === 'OAUTH_STAGING_VERIFIED' &&
-          result?.mcp_authorized === false && result?.garmin_access === false)
-        note('PASS: authorization code exchanged; Neon access token signature, issuer, audience, scope and client verified. MCP and Garmin access remain disabled.');
+          result?.mcp_authorized === false && result?.garmin_access === false) {
+        if (result?.mcp_demo_probe === 'PASS')
+          note('PASS: Neon OAuth + PKCE + verified JWT + authenticated MCP demo tools/list. Only fictional data; live MCP/Garmin access remains disabled.');
+        else if (result?.mcp_demo_probe === 'FAILED')
+          note('PARTIAL PASS: Neon OAuth verified; authenticated MCP demo probe failed. No live Garmin data or production MCP access.');
+        else
+          note('PASS: authorization code exchanged; Neon access token signature, issuer, audience, scope and client verified. Demo MCP tool probe not enabled; live Garmin access disabled.');
+      }
       else note('Staging stopped [' + (/^[A-Z0-9_]{3,48}$/.test(result?.error||'') ? result.error : 'EXCHANGE_FAILED') + ']. No MCP/Garmin access.');
     } catch (_) {note('Staging stopped [NETWORK_OR_BROWSER_POLICY]. No MCP/Garmin access.');}
   })();

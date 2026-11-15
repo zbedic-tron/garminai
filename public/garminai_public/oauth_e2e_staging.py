@@ -1,4 +1,4 @@
-"""v0.8.7.4 isolated, opt-in OAuth authorization-code+PKCE E2E smoke test.
+"""v0.8.8 isolated, opt-in OAuth authorization-code+PKCE E2E smoke test.
 
 NO real Garmin access, no MCP authorization, no token storage, no client secret.
 Never return OAuth codes, provider tokens, user identifiers or raw errors.
@@ -20,7 +20,7 @@ from starlette.responses import HTMLResponse, JSONResponse, Response
 from .auth_staging_poc import validate_staging_auth_url
 from .oauth_resource_staging import build_contract
 
-_VERSION = '0.8.7.4'
+_VERSION = '0.8.8'
 _CLIENT = re.compile(r'^[A-Za-z0-9._~:/-]{8,512}$')
 _CODE = re.compile(r'^[A-Za-z0-9._~+-]{12,2048}$')
 _B64URL_43 = re.compile(r'^[A-Za-z0-9_-]{43}$')
@@ -71,6 +71,7 @@ def _headers(csp=None):
 
 async def status(_request):
     c = configuration()
+    from .mcp_oauth_gateway import configured as mcp_demo_configured
     return JSONResponse({
         'version': _VERSION, 'mode': 'STAGING_ONLY',
         'oauth_e2e_test_enabled': c['enabled'],
@@ -78,6 +79,7 @@ async def status(_request):
         'test_callback_url': c['callback'] if c['enabled'] else None,
         'token_exchange': 'SERVER_SIDE_NO_TOKEN_STORAGE',
         'mcp_authenticated_tools_enabled': False, 'garmin_live_data_enabled': False,
+        'mcp_demo_oauth_tools_enabled': mcp_demo_configured()['enabled'],
     }, headers=_headers())
 
 
@@ -85,7 +87,7 @@ _PAGE = '''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name
 <style>:root{font:16px system-ui,sans-serif;color-scheme:dark}*{box-sizing:border-box}body{background:#0b1220;color:#ecf4fa;display:grid;place-items:center;min-height:100vh;margin:0;padding:18px}main{max-width:620px;width:100%;padding:30px;border:1px solid #41516b;border-radius:16px;background:#172538}.brand{color:#76ead4;font-weight:750}p{line-height:1.5}button{background:#157763;border:1px solid #a6f4df;color:white;border-radius:8px;padding:12px 16px;min-height:44px;cursor:pointer}button:disabled{opacity:.5;cursor:not-allowed}#status{white-space:pre-wrap}small{color:#b8c9d8}</style></head><body>
 <main data-oauth-test="1" data-mode="{mode}" data-issuer="{issuer}" data-client-id="{client}" data-resource="{resource}" data-callback="{callback}">
 <p class="brand">GARMINAI PUBLIC · OAUTH TEST STAGING</p><h1>Authorization code + PKCE/S256</h1>
-<p>Independent OAuth diagnostic. This does not connect Garmin and does not grant access to any MCP tool.</p>
+<p>Independent OAuth diagnostic. When the separate demo switch is enabled, it also checks fictional, read-only MCP tools. Never real Garmin data.</p>
 {button}
 <p id="status" role="status" aria-live="polite">{initial}</p>
 <small>Client: public (no secret). Scope: openid only. Your token is checked transiently by the server and never displayed or stored.</small>
@@ -166,6 +168,55 @@ def _check_jwt(access_token, keys, *, issuer, resource, client_id):
     return True
 
 
+async def _probe_demo_mcp(access_token, c):
+    """In-process, one-time JSON-RPC test: no OAuth token leaves the server.
+
+    Uses the real ASGI OAuth gate and the real staged MCP transport, with the
+    same ephemeral access token obtained in the PKCE exchange. It never calls
+    Garmin or writes the token to storage.
+    """
+    try:
+        from .http_server import app
+        transport = httpx.ASGITransport(app=app)
+        headers = {
+            'Authorization': 'Bearer ' + access_token,
+            'Accept': 'application/json, text/event-stream',
+            'Content-Type': 'application/json',
+            'MCP-Protocol-Version': '2025-03-26',
+        }
+        async with httpx.AsyncClient(transport=transport, base_url=c['origin'],
+                                     timeout=8.0, follow_redirects=False) as cli:
+            init = await cli.post('/mcp-oauth-staging', headers=headers, json={
+                'jsonrpc':'2.0', 'id':1, 'method':'initialize',
+                'params':{'protocolVersion':'2025-03-26', 'capabilities':{},
+                          'clientInfo':{'name':'GarminAI private E2E diagnostic','version':'0.8.8'}}
+            })
+            if init.status_code != 200 or 'result' not in init.json():
+                return 'FAILED'
+            result = await cli.post('/mcp-oauth-staging', headers=headers, json={
+                'jsonrpc':'2.0','id':2,'method':'tools/list','params':{}
+            })
+            if result.status_code != 200:
+                return 'FAILED'
+            body = result.json()
+            tools = body.get('result', {}).get('tools', [])
+            names = {t.get('name') for t in tools if isinstance(t, dict)}
+            if names != {'get_sync_status','get_activities'}:
+                return 'FAILED'
+            called = await cli.post('/mcp-oauth-staging', headers=headers, json={
+                'jsonrpc':'2.0','id':3,'method':'tools/call',
+                'params':{'name':'get_sync_status','arguments':{}}
+            })
+        if called.status_code != 200:
+            return 'FAILED'
+        # Do not echo the content of the tool response; verify that the
+        # fictional-data marker is present and return only an aggregate bit.
+        payload = called.json()
+        return 'PASS' if 'DEMO_ONLY' in str(payload.get('result', {})) else 'FAILED'
+    except (httpx.HTTPError, ValueError, TypeError, RuntimeError, ImportError):
+        return 'FAILED'
+
+
 async def _exchange_and_verify(code, verifier, c):
     base = c['issuer']
     redirect_uri = c['callback']
@@ -197,9 +248,20 @@ async def _exchange_and_verify(code, verifier, c):
     except httpx.HTTPError as exc:
         raise UnsafeOAuthResponse('NEON_NETWORK_FAILURE') from exc
     _check_jwt(access_token, jwks, issuer=base, resource=c['resource'], client_id=c['client_id'])
-    # Intentionally discard all token content and claims without persisting or returning it.
+    # Optional demo-only MCP check uses the same ephemeral access token. No
+    # bearer or verified subject is returned to the browser or persisted.
+    from .mcp_oauth_gateway import configured as mcp_demo_configured
+    probe = 'NOT_ENABLED'
+    if mcp_demo_configured()['enabled']:
+        try:
+            probe = await asyncio.wait_for(_probe_demo_mcp(access_token, c), timeout=12)
+        except Exception:
+            # Staging MCP failure must never leak an OAuth token or mask
+            # the completed PKCE verification as an unhandled 500.
+            probe = 'FAILED' 
     return {'result':'OAUTH_STAGING_VERIFIED', 'authorization_code_exchanged': True,
             'jwt_signature_issuer_audience_scope_client_verified': True,
+            'mcp_demo_probe': probe,
             'mcp_authorized': False, 'garmin_access': False}
 
 
@@ -247,7 +309,7 @@ async def exchange(request):
 
 
 _JS = r'''"use strict";
-// GarminAI v0.8.7.4 public-client OAuth diagnostic, no token or code display/storage.
+// GarminAI v0.8.8 public-client OAuth diagnostic, no token or code display/storage.
 (() => {
   const root = document.querySelector('main[data-oauth-test]');
   if (!root) return;
@@ -326,8 +388,14 @@ _JS = r'''"use strict";
       });
       const result=await response.json();
       if (response.ok && result?.result === 'OAUTH_STAGING_VERIFIED' &&
-          result?.mcp_authorized === false && result?.garmin_access === false)
-        note('PASS: authorization code exchanged; Neon access token signature, issuer, audience, scope and client verified. MCP and Garmin access remain disabled.');
+          result?.mcp_authorized === false && result?.garmin_access === false) {
+        if (result?.mcp_demo_probe === 'PASS')
+          note('PASS: Neon OAuth + PKCE + verified JWT + authenticated MCP demo tools/list. Only fictional data; live MCP/Garmin access remains disabled.');
+        else if (result?.mcp_demo_probe === 'FAILED')
+          note('PARTIAL PASS: Neon OAuth verified; authenticated MCP demo probe failed. No live Garmin data or production MCP access.');
+        else
+          note('PASS: authorization code exchanged; Neon access token signature, issuer, audience, scope and client verified. Demo MCP tool probe not enabled; live Garmin access disabled.');
+      }
       else note('Staging stopped [' + (/^[A-Z0-9_]{3,48}$/.test(result?.error||'') ? result.error : 'EXCHANGE_FAILED') + ']. No MCP/Garmin access.');
     } catch (_) {note('Staging stopped [NETWORK_OR_BROWSER_POLICY]. No MCP/Garmin access.');}
   })();

@@ -1,4 +1,4 @@
-"""GarminAI v0.8.7.4: managed Neon OAuth for one registered staging client.
+"""GarminAI v0.8.8: managed Neon OAuth for one registered staging client.
 
 No client-side signature verification is claimed. Neon verifies signed oauth_query
 when consenting and validates authorize requests. Actual MCP/Garmin stays disabled.
@@ -66,10 +66,15 @@ def _response(*, mode: str, base: str, resource: str, client_id: str, callback: 
                     '<button type="button" id="allow" disabled>Approve</button>'
                     '<button type="button" id="deny" class="deny" disabled>Deny</button>'
                     '<a id="login-link" hidden href="/auth/login">Sign in first</a>')
+    from .mcp_oauth_gateway import configured as mcp_demo_configured
+    demo_tools = mcp_demo_configured()['enabled']
+    notice = ('Staging only. This authorizes fictional, read-only MCP demo tools. '
+              'It never connects Garmin accounts or real athlete data.' if demo_tools else
+              'Staging only. This page never connects Garmin accounts or grants MCP tool access.')
     html = f'''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{escape(title)}</title><style>{_CSS}</style></head>
-<body><main data-mode="{mode}" data-auth="{escape(base, quote=True)}" data-resource="{escape(resource, quote=True)}" data-client-id="{escape(client_id, quote=True)}" data-callback="{escape(callback, quote=True)}">
+<body><main data-mode="{mode}" data-auth="{escape(base, quote=True)}" data-resource="{escape(resource, quote=True)}" data-client-id="{escape(client_id, quote=True)}" data-callback="{escape(callback, quote=True)}" data-demo-tools="{str(demo_tools).lower()}">
 <div class="brand">GARMINAI PUBLIC · OAUTH STAGING</div><h1>{escape(title)}</h1>
-<p class="notice">Staging only. This page never connects Garmin accounts or grants MCP tool access.</p>
+<p class="notice">{escape(notice)}</p>
 {controls}<p role="status" aria-live="polite" id="status">Verifying signed request with Neon…</p>
 <footer>Neon validates the signed request and consent. Never approve unknown apps. Garmin Connect authorization is a separate step.</footer>
 </main><script defer src="/auth/oauth-ui.js"></script></body></html>'''
@@ -99,19 +104,22 @@ async def consent_page(request):
 
 async def ui_status(request):
     c = configuration()
+    from .mcp_oauth_gateway import configured as mcp_demo_configured
+    demo_tools = mcp_demo_configured()['enabled']
     return JSONResponse({
-        "version":"0.8.7.4", "mode":"STAGING_ONLY",
+        "version":"0.8.8", "mode":"STAGING_ONLY",
         "oauth_ui_staging_enabled": c["enabled"],
         "oauth_ui_config_errors": c["issues"] if c["requested"] else [],
         "provider_enabled_by_this_app": False,
         "mcp_authenticated_tools_enabled": False,
+        "mcp_demo_oauth_tools_enabled": demo_tools,
         "garmin_live_data_enabled": False,
-        "next":"Test Neon-signed consent and PKCE callback for the configured staging client; MCP/Garmin access is disabled.",
+        "next":"Staging client and fictional MCP-only tools; Garmin access remains disabled.",
     }, headers={"Cache-Control":"no-store"})
 
 
 _JS = r'''"use strict";
-// GarminAI v0.8.7.4: one known staging client only; Neon validates the signed
+// GarminAI v0.8.8: one known staging client only; Neon validates the signed
 // query when handling authorization/consent. This browser does NOT verify sig.
 (() => {
   const root = document.querySelector('main[data-mode]');
@@ -121,6 +129,7 @@ _JS = r'''"use strict";
   const resource = root.dataset.resource;
   const expectedClient = root.dataset.clientId;
   const expectedCallback = root.dataset.callback;
+  const demoTools = root.dataset.demoTools === 'true';
   const status = document.getElementById('status');
   const signin = document.getElementById('signin');
   const allow = document.getElementById('allow');
@@ -296,7 +305,7 @@ _JS = r'''"use strict";
     const host = new URL(expectedCallback).hostname;
     document.getElementById('client-name').textContent = name.slice(0,160);
     document.getElementById('client-host').textContent = 'Return destination: ' + host + ' (check carefully)';
-    document.getElementById('scope').textContent = 'openid — verify your sign-in identity';
+    document.getElementById('scope').textContent = demoTools ? 'openid — identity check for fictional read-only demo MCP tools only' : 'openid — verify your sign-in identity';
     document.getElementById('resource').textContent = 'Requested staging resource: ' + resource;
     document.getElementById('client').hidden = false;
     document.getElementById('rights').hidden = false;

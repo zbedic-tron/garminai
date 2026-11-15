@@ -1,3 +1,10 @@
+# GarminAI Public v0.8.8 — Neon OAuth Protected MCP Demo (opt-in)
+
+A separate, flag-controlled `/mcp-oauth-staging` serves **two fictional-data MCP
+read-only tools** only after validating a signed, resource-bound Neon access JWT.
+`/mcp` keeps its original static demo bearer gate. No Garmin account access.
+See [V088_NEON_MCP_AUTH_STAGING_SR.md](docs/V088_NEON_MCP_AUTH_STAGING_SR.md).
+
 # GarminAI Public v0.8.7.4 — Consent / public-client metadata fix
 
 Public OAuth client lookup may return `redirect_uris: []` despite a configured Neon callback. The UI now accepts the redacted empty metadata while keeping known-client, signed-request and provider-side redirect protections. See [V0874_NEON_CONSENT_CLIENT_METADATA_FIX_SR.md](docs/V0874_NEON_CONSENT_CLIENT_METADATA_FIX_SR.md).

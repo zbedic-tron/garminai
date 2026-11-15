@@ -1,5 +1,5 @@
 "use strict";
-// GarminAI v0.8.7.4: one known staging client only; Neon validates the signed
+// GarminAI v0.8.8: one known staging client only; Neon validates the signed
 // query when handling authorization/consent. This browser does NOT verify sig.
 (() => {
   const root = document.querySelector('main[data-mode]');
@@ -9,6 +9,7 @@
   const resource = root.dataset.resource;
   const expectedClient = root.dataset.clientId;
   const expectedCallback = root.dataset.callback;
+  const demoTools = root.dataset.demoTools === 'true';
   const status = document.getElementById('status');
   const signin = document.getElementById('signin');
   const allow = document.getElementById('allow');
@@ -184,7 +185,7 @@
     const host = new URL(expectedCallback).hostname;
     document.getElementById('client-name').textContent = name.slice(0,160);
     document.getElementById('client-host').textContent = 'Return destination: ' + host + ' (check carefully)';
-    document.getElementById('scope').textContent = 'openid — verify your sign-in identity';
+    document.getElementById('scope').textContent = demoTools ? 'openid — identity check for fictional read-only demo MCP tools only' : 'openid — verify your sign-in identity';
     document.getElementById('resource').textContent = 'Requested staging resource: ' + resource;
     document.getElementById('client').hidden = false;
     document.getElementById('rights').hidden = false;
