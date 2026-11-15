@@ -120,3 +120,10 @@ Fix for Neon OAuth signed redirects which intentionally include `ba_param=ba_par
 ## v0.8.7.3 — Neon OAuth continue, bez authorize petlje
 
 Prijavljen korisnik na Login strani sada nastavlja originalni potpisani zahtev preko `POST /oauth2/continue` (`selected:true`), umesto da se ponovo kreira `/oauth2/authorize` koji je dovodio do `OAUTH_SESSION_LOOP`. Sačuvane provere potpisa od strane Neona, `state` i sigurnosni staging režim. Vidi `docs/V0873_OAUTH_CONTINUE_SESSION_LOOP_FIX_SR.md`.
+
+
+## GarminAI Public v0.9.0 — ChatGPT private OAuth staging
+
+Separate opt-in, operator-registered **public** Neon OAuth client for a private ChatGPT MCP connection. Only fictional, user-scoped demo tools are served; the old `/mcp` demo bearer gate and the v0.8.9 E2E test remain unchanged. Full details in `docs/V090_CHATGPT_PRIVATE_MCP_STAGING_SR.md`.
+
+Never configure a billing account or publish the plugin automatically. ChatGPT-side callback and registration must be completed through Neon/ChatGPT interfaces before enabling `GARMINAI_CHATGPT_MCP_STAGING_ENABLED=1`.

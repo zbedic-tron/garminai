@@ -1,4 +1,4 @@
-"""GarminAI v0.8.9: managed Neon OAuth for one registered staging client.
+"""GarminAI v0.9.0: managed Neon OAuth for exactly allowlisted staging clients.
 
 No client-side signature verification is claimed. Neon verifies signed oauth_query
 when consenting and validates authorize requests. Actual MCP/Garmin stays disabled.
@@ -72,7 +72,7 @@ def _response(*, mode: str, base: str, resource: str, client_id: str, callback: 
               'It never connects Garmin accounts or real athlete data.' if demo_tools else
               'Staging only. This page never connects Garmin accounts or grants MCP tool access.')
     html = f'''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{escape(title)}</title><style>{_CSS}</style></head>
-<body><main data-mode="{mode}" data-auth="{escape(base, quote=True)}" data-resource="{escape(resource, quote=True)}" data-client-id="{escape(client_id, quote=True)}" data-callback="{escape(callback, quote=True)}" data-demo-tools="{str(demo_tools).lower()}">
+<body><main data-mode="{mode}" data-auth="{escape(base, quote=True)}" data-resource="{escape(resource, quote=True)}" data-client-id="{escape(client_id, quote=True)}" data-callback="{escape(callback, quote=True)}" data-chatgpt-client="{str(callback.startswith('https://chatgpt.com/')).lower()}" data-demo-tools="{str(demo_tools).lower()}">
 <div class="brand">GARMINAI PUBLIC · OAUTH STAGING</div><h1>{escape(title)}</h1>
 <p class="notice">{escape(notice)}</p>
 {controls}<p role="status" aria-live="polite" id="status">Verifying signed request with Neon…</p>
@@ -88,10 +88,24 @@ def _response(*, mode: str, base: str, resource: str, client_id: str, callback: 
     return HTMLResponse(html, headers=headers)
 
 
+def _profile_for_signed_request(request, c):
+    """Select ONLY an operator-allowlisted client. The untrusted URL is used
+    solely for *selection*, never for authorization or redirect construction.
+    Neon validates the signed oauth_query before issuing code/consent.
+    """
+    from .chatgpt_staging import configuration as chatgpt_configuration
+    selected = request.query_params.get('client_id') if hasattr(request, 'query_params') else None
+    chatgpt = chatgpt_configuration()
+    if chatgpt['enabled'] and selected == chatgpt['client_id']:
+        return {**c, 'client_id':chatgpt['client_id'], 'callback':chatgpt['callback']}
+    return c
+
+
 async def login_page(request):
     c = configuration()
     if not c["enabled"]:
         return await disabled_login(request)
+    c = _profile_for_signed_request(request, c)
     return _response(mode="login", base=c["neon_auth"], resource=c["resource"], client_id=c["client_id"], callback=c["callback"])
 
 
@@ -99,6 +113,7 @@ async def consent_page(request):
     c = configuration()
     if not c["enabled"]:
         return await disabled_consent(request)
+    c = _profile_for_signed_request(request, c)
     return _response(mode="consent", base=c["neon_auth"], resource=c["resource"], client_id=c["client_id"], callback=c["callback"])
 
 
@@ -107,7 +122,7 @@ async def ui_status(request):
     from .mcp_oauth_gateway import configured as mcp_demo_configured
     demo_tools = mcp_demo_configured()['enabled']
     return JSONResponse({
-        "version":"0.8.9", "mode":"STAGING_ONLY",
+        "version":"0.9.0", "mode":"STAGING_ONLY",
         "oauth_ui_staging_enabled": c["enabled"],
         "oauth_ui_config_errors": c["issues"] if c["requested"] else [],
         "provider_enabled_by_this_app": False,
@@ -119,8 +134,8 @@ async def ui_status(request):
 
 
 _JS = r'''"use strict";
-// GarminAI v0.8.9: one known staging client only; Neon validates the signed
-// query when handling authorization/consent. This browser does NOT verify sig.
+// GarminAI v0.9.0: operator-allowlisted staging client only; Neon validates
+// the signed query when issuing code/consent. Browser cannot verify sig.
 (() => {
   const root = document.querySelector('main[data-mode]');
   if (!root) return;
@@ -129,6 +144,7 @@ _JS = r'''"use strict";
   const resource = root.dataset.resource;
   const expectedClient = root.dataset.clientId;
   const expectedCallback = root.dataset.callback;
+  const isChatGPT = root.dataset.chatgptClient === 'true';
   const demoTools = root.dataset.demoTools === 'true';
   const status = document.getElementById('status');
   const signin = document.getElementById('signin');
@@ -181,7 +197,18 @@ _JS = r'''"use strict";
       const onNeon = u.origin === auth.origin && u.pathname.startsWith(auth.pathname + '/');
       const onOurApp = u.origin === location.origin &&
         ['/auth/login','/auth/consent','/auth/oauth-test/callback'].includes(u.pathname);
-      if (!onNeon && !onOurApp) return null;
+      // Only a configured exact ChatGPT callback may receive authorization
+      // results. Reject any other external redirect or state mismatch.
+      const configured = new URL(expectedCallback);
+      const external = isChatGPT && u.origin === configured.origin &&
+        u.pathname === configured.pathname &&
+        u.searchParams.getAll('state').length === 1 &&
+        u.searchParams.get('state') === signedValue('state') &&
+        u.searchParams.has('code') !== u.searchParams.has('error') &&
+        (!u.searchParams.has('iss') || u.searchParams.get('iss') === base) &&
+        [...u.searchParams.keys()].every(k =>
+          ['state','code','error','error_description','iss'].includes(k));
+      if (!onNeon && !onOurApp && !external) return null;
     }
     return u.href;
   }
@@ -232,14 +259,24 @@ _JS = r'''"use strict";
     if (!signed) throw Error('INVALID_SIGNED_REQUEST');
     if (signedValue('client_id') !== expectedClient) throw Error('UNEXPECTED_CLIENT');
     if (signedValue('redirect_uri') !== expectedCallback) throw Error('UNSAFE_CLIENT_REDIRECT');
-    if (signedValue('scope') !== 'openid') throw Error('UNSUPPORTED_SCOPE');
+    if (isChatGPT) {
+      // OpenID-only demo: allow only identity-related OIDC scopes, never Garmin
+      // or write permissions. OpenAI can request additional default OIDC scopes.
+      const scopes = signedValue('scope').split(' ').filter(Boolean);
+      if (!scopes.includes('openid') || scopes.length > 3 ||
+          new Set(scopes).size !== scopes.length ||
+          scopes.some(s => !['openid','email','profile'].includes(s)))
+        throw Error('UNSUPPORTED_SCOPE');
+    } else if (signedValue('scope') !== 'openid') throw Error('UNSUPPORTED_SCOPE');
     if (signedValue('resource') !== resource) throw Error('RESOURCE_MISMATCH');
+    const state = signedValue('state');
     if (signedValue('response_type') !== 'code' || signedValue('code_challenge_method') !== 'S256' ||
         !/^[A-Za-z0-9_-]{43}$/.test(signedValue('code_challenge')) ||
-        !/^[A-Za-z0-9_-]{43}$/.test(signedValue('state')))
+        (isChatGPT ? !/^[A-Za-z0-9._~-]{16,512}$/.test(state) : !/^[A-Za-z0-9_-]{43}$/.test(state)))
       throw Error('UNSUPPORTED_OAUTH_FLOW');
-    // Prompt must remain the value initiated by our e2e test client.
-    if (signedValue('prompt') !== 'consent') throw Error('UNEXPECTED_PROMPT');
+    const prompt = signedValue('prompt');
+    if (isChatGPT ? (prompt && prompt !== 'consent') : prompt !== 'consent')
+      throw Error('UNEXPECTED_PROMPT');
   }
 
   async function registeredClient() {
@@ -305,7 +342,7 @@ _JS = r'''"use strict";
     const host = new URL(expectedCallback).hostname;
     document.getElementById('client-name').textContent = name.slice(0,160);
     document.getElementById('client-host').textContent = 'Return destination: ' + host + ' (check carefully)';
-    document.getElementById('scope').textContent = demoTools ? 'openid — identity check for fictional read-only demo MCP tools only' : 'openid — verify your sign-in identity';
+    document.getElementById('scope').textContent = (isChatGPT ? signedValue('scope') : 'openid') + (demoTools ? ' — fictional read-only demo MCP tools only' : ' — verify your sign-in identity');
     document.getElementById('resource').textContent = 'Requested staging resource: ' + resource;
     document.getElementById('client').hidden = false;
     document.getElementById('rights').hidden = false;
@@ -361,7 +398,7 @@ _JS = r'''"use strict";
     busy = true; disableAll(); note(accept ? 'Submitting approval to Neon…' : 'Submitting denial to Neon…');
     try {
       const result = await api('/oauth2/consent', {method:'POST', body:{
-        accept, ...(accept ? {scope:'openid'} : {}), oauth_query:signed.toString()
+        accept, ...(accept ? {scope:isChatGPT ? signedValue('scope') : 'openid'} : {}), oauth_query:signed.toString()
       }});
       await followProviderReply(result);
     } catch (e) {failure(e);} finally {busy=false;}

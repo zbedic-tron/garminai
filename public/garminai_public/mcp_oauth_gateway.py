@@ -1,4 +1,4 @@
-"""v0.8.9: isolated, opt-in Neon JWT bearer gate for fictional MCP tools.
+"""v0.9.0: isolated, opt-in Neon JWT bearer gate for fictional MCP tools.
 
 No Garmin connectivity and no real athlete data. A separate operator opt-in is
 required; the legacy /mcp demo bearer gate and database identity are unchanged.
@@ -131,9 +131,25 @@ class StagingOAuthGate:
             await _reply(send, 503, {'error':'signing_keys_unavailable'})
             return
         try:
-            claims = _check_jwt(token, keys, issuer=opt['oauth']['issuer'],
-                                resource=opt['oauth']['resource'],
-                                client_id=opt['oauth']['client_id'], return_claims=True)
+            # Check up to two operator-allowlisted client identities. NEVER trust
+            # an unverified azp/client_id from a token to choose permissions.
+            # The original E2E test client remains independently permitted.
+            from .chatgpt_staging import configuration as chatgpt_configuration
+            chatgpt = chatgpt_configuration()
+            clients = [opt['oauth']['client_id']]
+            if chatgpt['enabled']:
+                clients.append(chatgpt['client_id'])
+            claims = None
+            for allowed_client in clients:
+                try:
+                    claims = _check_jwt(token, keys, issuer=opt['oauth']['issuer'],
+                                        resource=opt['oauth']['resource'],
+                                        client_id=allowed_client, return_claims=True)
+                    break
+                except UnsafeOAuthResponse:
+                    continue
+            if claims is None:
+                raise UnsafeOAuthResponse('INVALID_CLIENT_OR_TOKEN')
             principal = principal_from_claims(claims)
         except (UnsafeOAuthResponse, ValueError, KeyError):
             await _reply(send, 401, {'error':'invalid_token'}, challenge)

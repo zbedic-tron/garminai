@@ -1,4 +1,4 @@
-"""GarminAI Public v0.8.9: isolated Neon OAuth MCP staging, fictional tools only."""
+"""GarminAI Public v0.9.0: isolated Neon OAuth MCP staging, fictional tools only."""
 import os
 from contextlib import asynccontextmanager, AsyncExitStack
 from starlette.applications import Starlette
@@ -19,6 +19,7 @@ from .auth_staging_poc import staging_login, staging_js
 from .neon_auth_check import auth_configuration_status, startup_auth_report
 from .oauth_e2e_staging import status as oauth_e2e_status, start as oauth_e2e_start, callback as oauth_e2e_callback, script as oauth_e2e_script, exchange as oauth_e2e_exchange
 from .oauth_resource_staging import status as oauth_staging_status, metadata as oauth_staging_metadata
+from .chatgpt_staging import status as chatgpt_status, configuration as chatgpt_configuration
 
 hostname = os.environ.get("RENDER_EXTERNAL_HOSTNAME", "").strip()
 extra = os.environ.get("GARMINAI_ALLOWED_HOST", "").strip()
@@ -31,6 +32,10 @@ for value in (hostname, extra):
             raise ValueError("Allowed host must be a hostname, without scheme or port")
         hosts += [value, value + ":*"]
         origins += ["https://" + value]
+# Official ChatGPT UI origin is permitted ONLY if the private connector is
+# explicitly configured. This does not bypass our per-request JWT gate.
+if chatgpt_configuration()['enabled']:
+    origins.append('https://chatgpt.com')
 
 security = TransportSecuritySettings(
     enable_dns_rebinding_protection=True,
@@ -48,10 +53,10 @@ staging_mcp_asgi = staging_mcp.streamable_http_app()
 oauth_staging_gateway = StagingOAuthGate(staging_mcp_asgi)
 
 async def health(_request):
-    return JSONResponse({"status":"ok", "version":"0.8.9", "mode":"DEMO_ONLY", "garmin_oauth":"NOT_CONNECTED", "auth":"DEMO_BEARER_GATE"})
+    return JSONResponse({"status":"ok", "version":"0.9.0", "mode":"DEMO_ONLY", "garmin_oauth":"NOT_CONNECTED", "auth":"DEMO_BEARER_GATE"})
 
 async def index(_request):
-    return JSONResponse({"project":"GarminAI Public", "version":"0.8.9", "mode":"DEMO_ONLY", "message":"Only fictional activity data. MCP endpoint: /mcp"})
+    return JSONResponse({"project":"GarminAI Public", "version":"0.9.0", "mode":"DEMO_ONLY", "message":"Only fictional activity data. MCP endpoint: /mcp"})
 
 async def integration_readiness(_request):
     # Only configuration booleans; never values. Not an invitation to connect Garmin yet.
@@ -77,4 +82,4 @@ async def lifespan(_app):
         await stack.enter_async_context(staging_mcp.session_manager.run())
         yield
 
-app = Starlette(routes=[Route("/", index), Route("/healthz", health), Route("/integration/readiness", integration_readiness), Route("/auth/development-status", oauth_development_status), Route("/auth/oauth-ui/status", ui_status), Route("/auth/login", login_page), Route("/auth/staging/google", staging_login), Route("/auth/staging/google.js", staging_js), Route("/auth/consent", consent_page), Route("/auth/oauth-ui.js", ui_js), Route("/garmin/oauth/callback", garmin_callback_disabled), Route("/auth/mcp-oauth/status", oauth_staging_status), Route("/auth/oauth-test/status", oauth_e2e_status), Route("/auth/oauth-test", oauth_e2e_start), Route("/auth/oauth-test/callback", oauth_e2e_callback), Route("/auth/oauth-test.js", oauth_e2e_script), Route("/auth/oauth-test/exchange", oauth_e2e_exchange, methods=["POST"]), Route("/.well-known/oauth-protected-resource/mcp-oauth-staging", oauth_staging_metadata), Route("/mcp-oauth-staging", oauth_staging_gateway, methods=["GET", "POST", "DELETE"]), Mount("/", app=DemoBearerGate(mcp_asgi))], lifespan=lifespan)
+app = Starlette(routes=[Route("/", index), Route("/healthz", health), Route("/integration/readiness", integration_readiness), Route("/auth/development-status", oauth_development_status), Route("/auth/oauth-ui/status", ui_status), Route("/auth/login", login_page), Route("/auth/staging/google", staging_login), Route("/auth/staging/google.js", staging_js), Route("/auth/consent", consent_page), Route("/auth/oauth-ui.js", ui_js), Route("/garmin/oauth/callback", garmin_callback_disabled), Route("/auth/mcp-oauth/status", oauth_staging_status), Route("/auth/chatgpt/status", chatgpt_status), Route("/auth/oauth-test/status", oauth_e2e_status), Route("/auth/oauth-test", oauth_e2e_start), Route("/auth/oauth-test/callback", oauth_e2e_callback), Route("/auth/oauth-test.js", oauth_e2e_script), Route("/auth/oauth-test/exchange", oauth_e2e_exchange, methods=["POST"]), Route("/.well-known/oauth-protected-resource/mcp-oauth-staging", oauth_staging_metadata), Route("/.well-known/oauth-protected-resource", oauth_staging_metadata), Route("/mcp-oauth-staging", oauth_staging_gateway, methods=["GET", "POST", "DELETE"]), Mount("/", app=DemoBearerGate(mcp_asgi))], lifespan=lifespan)
