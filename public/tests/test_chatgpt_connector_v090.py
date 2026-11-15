@@ -1,4 +1,4 @@
-"""0.9.1 local, offline tests for the *operator-enabled* ChatGPT client.
+"""0.9.2 local, offline tests for the *operator-enabled* ChatGPT client.
 
 These tests do NOT establish that ChatGPT/Neon live connection succeeds.
 """
@@ -87,7 +87,7 @@ class ChatGPTRegistrationTests(unittest.TestCase):
             self.assertIn('data-chatgpt-client="true"',html)
             self.assertIn('https://chatgpt.com/oauth/client.json',html)
             st=json.loads(asyncio.run(status(None)).body)
-            self.assertEqual(st['version'],'0.9.1')
+            self.assertEqual(st['version'],'0.9.2')
             self.assertEqual(st['expected_neon_registration'],'CIMD_DISCOVERY_NO_MANUAL_CLIENT')
         for override in (
             {'GARMINAI_CHATGPT_OAUTH_CLIENT_ID':'https://evil.test/client.json'},

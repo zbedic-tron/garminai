@@ -1,4 +1,4 @@
-"""v0.9.1 isolated, opt-in OAuth authorization-code+PKCE E2E smoke test.
+"""v0.9.2 isolated, opt-in OAuth authorization-code+PKCE E2E smoke test.
 
 NO real Garmin access, no MCP authorization, no token storage, no client secret.
 Never return OAuth codes, provider tokens, user identifiers or raw errors.
@@ -20,7 +20,7 @@ from starlette.responses import HTMLResponse, JSONResponse, Response
 from .auth_staging_poc import validate_staging_auth_url
 from .oauth_resource_staging import build_contract
 
-_VERSION = '0.9.1'
+_VERSION = '0.9.2'
 _CLIENT = re.compile(r'^[A-Za-z0-9._~:/-]{8,512}$')
 _CODE = re.compile(r'^[A-Za-z0-9._~+-]{12,2048}$')
 _B64URL_43 = re.compile(r'^[A-Za-z0-9_-]{43}$')
@@ -161,6 +161,13 @@ def _check_jwt(access_token, keys, *, issuer, resource, client_id, return_claims
         )
     except (PyJWTError, TypeError, ValueError) as exc:
         raise UnsafeOAuthResponse('JWT_VALIDATION_FAILED') from exc
+    # Access tokens are credentials for every MCP request. Fail closed as soon
+    # as `exp` is reached: PyJWT's small clock-skew leeway is useful for some
+    # claims but MUST NOT extend the access token's lifetime at this resource.
+    # Refresh is handled by the OAuth client and Neon, never by this server.
+    expiry = claims.get('exp')
+    if type(expiry) not in (int, float) or expiry <= time.time():
+        raise UnsafeOAuthResponse('JWT_EXPIRED')
     scope = claims.get('scope')
     granted = set(scope.split()) if isinstance(scope, str) else set(scope) if isinstance(scope, list) and all(isinstance(s, str) for s in scope) else set()
     if 'openid' not in granted or claims.get('azp') != client_id or not isinstance(claims.get('sub'), str) or not claims['sub']:
@@ -223,7 +230,7 @@ async def _probe_demo_mcp(access_token, c):
                 json={'jsonrpc':'2.0','id':1,'method':'initialize',
                       'params':{'protocolVersion':'2025-03-26','capabilities':{},
                                 'clientInfo':{'name':'GarminAI staging E2E diagnostic',
-                                              'version':'0.9.1'}}}), 1)
+                                              'version':'0.9.2'}}}), 1)
             listing = await rpc(2,'tools/list',{})
             names = {item.get('name') for item in listing.get('tools', [])
                      if isinstance(item, dict)}
@@ -358,7 +365,7 @@ async def exchange(request):
 
 
 _JS = r'''"use strict";
-// GarminAI v0.9.1 public-client OAuth diagnostic, no token or code display/storage.
+// GarminAI v0.9.2 public-client OAuth diagnostic, no token or code display/storage.
 (() => {
   const root = document.querySelector('main[data-oauth-test]');
   if (!root) return;

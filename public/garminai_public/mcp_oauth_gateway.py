@@ -1,4 +1,4 @@
-"""v0.9.1: isolated, opt-in Neon JWT bearer gate for fictional MCP tools.
+"""v0.9.2: isolated, opt-in Neon JWT bearer gate for fictional MCP tools.
 
 No Garmin connectivity and no real athlete data. A separate operator opt-in is
 required; the legacy /mcp demo bearer gate and database identity are unchanged.
@@ -18,6 +18,7 @@ from .demo_tenant import principal_from_claims
 
 _TOKEN = re.compile(r'^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$')
 _CACHE_SECONDS = 60
+_MAX_DECLARED_BODY = 64 * 1024  # Free-tier guard, not a full streaming limit.
 
 
 def configured(env=None):
@@ -88,6 +89,8 @@ async def _reply(send, status, payload, challenge=None):
                'Referrer-Policy':'no-referrer'}
     if challenge:
         headers['WWW-Authenticate'] = challenge
+    if status == 503:
+        headers['Retry-After'] = '5'
     response = JSONResponse(payload, status_code=status, headers=headers)
     await response({'type':'http', 'method':'POST', 'path':'/mcp-oauth-staging',
                     'headers':[]}, None, send)
@@ -120,10 +123,30 @@ class StagingOAuthGate:
         if scope.get('path') != '/mcp-oauth-staging' or scope.get('method') not in ('POST','GET','DELETE'):
             await _reply(send, 404, {'error':'not_found'})
             return
+        # A conservative declared-body limit prevents gratuitous JWKS work
+        # for oversized requests on Render Free. Actual body validation is
+        # performed by MCP transport; no token or request body is logged.
+        length_headers = [v for k, v in scope.get('headers', ())
+                          if k.lower() == b'content-length']
+        if len(length_headers) > 1:
+            await _reply(send, 400, {'error':'invalid_request'})
+            return
+        if length_headers:
+            try:
+                raw_length = length_headers[0].decode('ascii')
+                if not raw_length.isdecimal():
+                    raise ValueError('invalid length')
+                if int(raw_length) > _MAX_DECLARED_BODY:
+                    await _reply(send, 413, {'error':'request_too_large'})
+                    return
+            except (UnicodeDecodeError, ValueError):
+                await _reply(send, 400, {'error':'invalid_request'})
+                return
+        invalid_challenge = challenge + ', error="invalid_token"'
         try:
             token = _bearer(scope)
         except UnsafeOAuthResponse:
-            await _reply(send, 401, {'error':'invalid_token'}, challenge)
+            await _reply(send, 401, {'error':'invalid_token'}, invalid_challenge)
             return
         try:
             keys = await self.jwks.get(opt['oauth']['issuer'])
@@ -152,7 +175,7 @@ class StagingOAuthGate:
                 raise UnsafeOAuthResponse('INVALID_CLIENT_OR_TOKEN')
             principal = principal_from_claims(claims)
         except (UnsafeOAuthResponse, ValueError, KeyError):
-            await _reply(send, 401, {'error':'invalid_token'}, challenge)
+            await _reply(send, 401, {'error':'invalid_token'}, invalid_challenge)
             return
         # Token has been verified; do not propagate it to the demo tool runtime.
         new_scope = dict(scope)

@@ -127,3 +127,12 @@ Prijavljen korisnik na Login strani sada nastavlja originalni potpisani zahtev p
 Separate opt-in, operator-registered **public** Neon OAuth client for a private ChatGPT MCP connection. Only fictional, user-scoped demo tools are served; the old `/mcp` demo bearer gate and the v0.8.9 E2E test remain unchanged. Full details in `docs/V090_CHATGPT_PRIVATE_MCP_STAGING_SR.md`.
 
 Never configure a billing account or publish the plugin automatically. ChatGPT-side callback and registration must be completed through Neon/ChatGPT interfaces before enabling `GARMINAI_CHATGPT_MCP_STAGING_ENABLED=1`.
+
+
+## GarminAI Public v0.9.2 — Private ChatGPT MCP stabilization
+
+No changes to the connected ChatGPT plugin configuration, registered CIMD
+client, resource URL or Neon provider. Improved token expiry enforcement,
+sanitized auth errors, concise read-only tool descriptions and offline
+negative tests. Activity data remains fictional and per-user scoped.
+See `docs/V092_STABILIZATION_SR.md`; additional spend **0 EUR**.

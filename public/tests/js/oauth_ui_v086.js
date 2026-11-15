@@ -1,5 +1,5 @@
 "use strict";
-// GarminAI v0.9.1: operator-allowlisted staging client only; Neon validates
+// GarminAI v0.9.2: operator-allowlisted staging client only; Neon validates
 // the signed query when issuing code/consent. Browser cannot verify sig.
 (() => {
   const root = document.querySelector('main[data-mode]');

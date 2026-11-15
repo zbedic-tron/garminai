@@ -1,4 +1,4 @@
-"""v0.9.1: exact ChatGPT CIMD identity and static-client fallback for OAuth demo MCP.
+"""v0.9.2: exact ChatGPT CIMD identity and static-client fallback for OAuth demo MCP.
 
 This is NOT an OAuth provider or a mechanism to register a ChatGPT client.
 When ChatGPT uses CIMD, Neon discovers its public metadata itself; the
@@ -74,7 +74,7 @@ async def status(_request):
     from .oauth_resource_staging import build_contract
     contract = build_contract()
     return JSONResponse({
-        'version': '0.9.1', 'mode': 'CHATGPT_PRIVATE_STAGING_ONLY',
+        'version': '0.9.2', 'mode': 'CHATGPT_PRIVATE_STAGING_ONLY',
         'chatgpt_connector_enabled': c['enabled'],
         'chatgpt_connector_requested': c['requested'],
         'chatgpt_config_issues': c['issues'],
