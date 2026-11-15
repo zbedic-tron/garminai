@@ -20,7 +20,7 @@ from starlette.responses import HTMLResponse, JSONResponse, Response
 from .auth_staging_poc import validate_staging_auth_url
 from .oauth_resource_staging import build_contract
 
-_VERSION = '1.0.1'
+_VERSION = '1.0.2'
 _CLIENT = re.compile(r'^[A-Za-z0-9._~:/-]{8,512}$')
 _CODE = re.compile(r'^[A-Za-z0-9._~+-]{12,2048}$')
 _B64URL_43 = re.compile(r'^[A-Za-z0-9_-]{43}$')

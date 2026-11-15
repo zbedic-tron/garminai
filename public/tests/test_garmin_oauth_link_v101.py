@@ -104,6 +104,33 @@ class TestGarminLink(unittest.TestCase):
                 self.assertEqual(client.post('/garmin/oauth/authorize').status_code,503)
                 self.assertEqual(client.get('/garmin/oauth/callback').status_code,503)
 
+    def test_browser_confirmation_csp_allows_only_official_garmin_redirect(self):
+        # Chromium enforces form-action on 303 redirects from submitted forms.
+        # Do not weaken generic error-page CSP or allow any other remote form host.
+        app=Starlette(routes=[Route('/garmin/oauth/connect',start_page),
+            Route('/garmin/oauth/authorize',authorize,methods=['POST'])])
+        with patch.dict(os.environ,GOOD,clear=False):
+            with TestClient(app,base_url='https://garminai-public-demo.onrender.com') as client:
+                ticket=issue_ticket(self.alice,key=K)
+                page=client.get('/garmin/oauth/connect',params={'ticket':ticket})
+                self.assertEqual(page.status_code,200)
+                csp=page.headers['content-security-policy']
+                self.assertIn("form-action 'self' https://connect.garmin.com;",csp)
+                self.assertNotIn('https://connectapi.garmin.com',csp)
+                self.assertIn("script-src 'none'",csp)
+                self.assertIn('frame-ancestors',csp)
+                # A successful browser POST still goes to Garmin via 303.
+                import re
+                csrf=re.search(r'name="csrf" value="([^"]+)"',page.text).group(1)
+                rsp=client.post('/garmin/oauth/authorize',data={'csrf':csrf,'ticket':ticket},follow_redirects=False)
+                self.assertEqual(rsp.status_code,303)
+                self.assertEqual(urlsplit(rsp.headers['location']).hostname,'connect.garmin.com')
+                # Invalid confirmation returns an error page with stricter CSP.
+                bad=client.post('/garmin/oauth/authorize',data={'csrf':'bad','ticket':ticket})
+                self.assertEqual(bad.status_code,400)
+                self.assertIn("form-action 'self';",bad.headers['content-security-policy'])
+                self.assertNotIn('https://connect.garmin.com',bad.headers['content-security-policy'])
+
     def test_browser_confirmation_then_garmin_redirect_no_network_or_secrets(self):
         app=Starlette(routes=[Route('/garmin/oauth/connect',start_page),
             Route('/garmin/oauth/authorize',authorize,methods=['POST'])])

@@ -1,4 +1,4 @@
-# GarminAI Public v1.0.1 — Garmin OAuth account linking (opt-in)
+# GarminAI Public v1.0.2 — Garmin OAuth account linking (opt-in)
 
 Diferencijalna nadogradnja v1.0.0: zaseban, inicijalno isključen Garmin
 Connect OAuth2 PKCE tok za identitet potvrđen Neon JWT-om; browser potvrda,

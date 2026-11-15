@@ -1,4 +1,4 @@
-"""v1.0.1 Garmin OAuth account-link staging, separated from all demo MCP data.
+"""v1.0.2 Garmin OAuth account-link staging, separated from all demo MCP data.
 
 Operator opt-in, browser confirmation, short-lived authenticated encrypted ticket,
 PKCE S256, browser-bound callback state, durable one-time replay lock and
@@ -44,6 +44,12 @@ _SAFE_HEADERS = {
 _HTML_HEADERS = dict(_SAFE_HEADERS, **{'Content-Security-Policy':
     "default-src 'none'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; "
     "style-src 'unsafe-inline'; form-action 'self'; script-src 'none'"})
+# Chromium can apply form-action policy to the final location of a 303
+# redirected POST form. Allow *only* Garmin's OAuth host for the browser
+# confirmation page; the generic/error pages keep same-origin-only CSP.
+_CONNECT_HEADERS = dict(_HTML_HEADERS, **{'Content-Security-Policy':
+    "default-src 'none'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; "
+    "style-src 'unsafe-inline'; form-action 'self' https://connect.garmin.com; script-src 'none'"})
 
 
 def configuration(env=None):
@@ -258,7 +264,7 @@ async def start_page(request):
     <p><strong>Nove Garmin aktivnosti se još ne preuzimaju i ne šalju ChatGPT-u.</strong> Bez omogućene posebne integracije nema deljenja stvarnih podataka sa AI.</p>
     <p>Vezu možeš prekinuti u Garmin Connect podešavanjima. Ne deli ovaj privatni link.</p>
     <form action="/garmin/oauth/authorize" method="post"><input type="hidden" name="ticket" value="'''+html.escape(ticket,quote=True)+'''"><input type="hidden" name="csrf" value="'''+html.escape(csrf,quote=True)+'''"><button type="submit">Nastavi na Garmin</button></form></main></html>'''
-    response=HTMLResponse(body,headers=_HTML_HEADERS)
+    response=HTMLResponse(body,headers=_CONNECT_HEADERS)
     response.set_cookie(COOKIE,csrf,max_age=600,httponly=True,secure=True,samesite='lax',path='/')
     return response
 
