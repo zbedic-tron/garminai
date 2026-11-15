@@ -8,14 +8,14 @@ const {TextEncoder}=require('node:util');
 const source=fs.readFileSync(process.argv[2]||'tests/js/oauth_ui_v086.js','utf8');
 const HOST='https://garminai-public-demo.onrender.com';
 const BASE='https://ep-test.neonauth.c-7.eu-central-1.aws.neon.tech/neondb/auth';
-const CLIENT='chatgpt-staging-public-client-9001';
+const CLIENT='https://chatgpt.com/oauth/client.json';
 const RESOURCE=HOST+'/mcp-oauth-staging';
 const CALLBACK='https://chatgpt.com/connector_platform_oauth_redirect';
 const STATE='c'.repeat(40);
 const CHALLENGE='z'.repeat(43);
 function signedQuery(changes={}) {
   const params={response_type:'code',client_id:CLIENT,redirect_uri:CALLBACK,
-    scope:'openid email profile',resource:RESOURCE,state:STATE,
+    scope:'openid email offline_access',resource:RESOURCE,state:STATE,
     code_challenge:CHALLENGE,code_challenge_method:'S256', ...changes};
   const query=new URLSearchParams();
   for (const [name,v] of Object.entries(params)) {
@@ -58,11 +58,13 @@ function page({changes={},replyUrl=CALLBACK+'?code=ACODE&state='+STATE,client=CL
  assert.deepEqual(ok.navigations,[CALLBACK+'?code=ACODE&state='+STATE]);
  const posted=ok.requests.find(r=>r.url.endsWith('/oauth2/consent'));
  assert.ok(posted);
- assert.equal(JSON.parse(posted.options.body).scope,'openid email profile');checks++;
+ assert.equal(JSON.parse(posted.options.body).scope,'openid email offline_access');checks++;
  for (const [changes,error] of [
    [{client_id:'different-client'},'UNEXPECTED_CLIENT'],
    [{redirect_uri:'https://evil.test/callback'},'UNSAFE_CLIENT_REDIRECT'],
    [{scope:'openid garmin:read'},'UNSUPPORTED_SCOPE'],
+   [{scope:'openid openid email offline_access'},'UNSUPPORTED_SCOPE'],
+   [{scope:'openid email offline_access write:all'},'UNSUPPORTED_SCOPE'],
    [{resource:'https://evil.test/mcp'},'RESOURCE_MISMATCH'],
    [{code_challenge_method:'plain'},'UNSUPPORTED_OAUTH_FLOW'],
    [{prompt:'none'},'UNEXPECTED_PROMPT'],

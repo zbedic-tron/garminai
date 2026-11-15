@@ -1,4 +1,4 @@
-"""GarminAI v0.9.0: managed Neon OAuth for exactly allowlisted staging clients.
+"""GarminAI v0.9.1: managed Neon OAuth for exactly allowlisted staging clients.
 
 No client-side signature verification is claimed. Neon verifies signed oauth_query
 when consenting and validates authorize requests. Actual MCP/Garmin stays disabled.
@@ -122,7 +122,7 @@ async def ui_status(request):
     from .mcp_oauth_gateway import configured as mcp_demo_configured
     demo_tools = mcp_demo_configured()['enabled']
     return JSONResponse({
-        "version":"0.9.0", "mode":"STAGING_ONLY",
+        "version":"0.9.1", "mode":"STAGING_ONLY",
         "oauth_ui_staging_enabled": c["enabled"],
         "oauth_ui_config_errors": c["issues"] if c["requested"] else [],
         "provider_enabled_by_this_app": False,
@@ -134,7 +134,7 @@ async def ui_status(request):
 
 
 _JS = r'''"use strict";
-// GarminAI v0.9.0: operator-allowlisted staging client only; Neon validates
+// GarminAI v0.9.1: operator-allowlisted staging client only; Neon validates
 // the signed query when issuing code/consent. Browser cannot verify sig.
 (() => {
   const root = document.querySelector('main[data-mode]');
@@ -260,12 +260,13 @@ _JS = r'''"use strict";
     if (signedValue('client_id') !== expectedClient) throw Error('UNEXPECTED_CLIENT');
     if (signedValue('redirect_uri') !== expectedCallback) throw Error('UNSAFE_CLIENT_REDIRECT');
     if (isChatGPT) {
-      // OpenID-only demo: allow only identity-related OIDC scopes, never Garmin
-      // or write permissions. OpenAI can request additional default OIDC scopes.
+      // ChatGPT requests offline_access for a refresh token; this grants no
+      // Garmin or write scopes. Limit to standard identity/refresh scopes.
+      // Neon independently validates grants and scope consent.
       const scopes = signedValue('scope').split(' ').filter(Boolean);
-      if (!scopes.includes('openid') || scopes.length > 3 ||
+      if (!scopes.includes('openid') || scopes.length > 4 ||
           new Set(scopes).size !== scopes.length ||
-          scopes.some(s => !['openid','email','profile'].includes(s)))
+          scopes.some(s => !['openid','email','profile','offline_access'].includes(s)))
         throw Error('UNSUPPORTED_SCOPE');
     } else if (signedValue('scope') !== 'openid') throw Error('UNSUPPORTED_SCOPE');
     if (signedValue('resource') !== resource) throw Error('RESOURCE_MISMATCH');

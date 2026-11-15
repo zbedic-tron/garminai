@@ -1,4 +1,4 @@
-"""GarminAI Public v0.9.0: isolated Neon OAuth MCP staging, fictional tools only."""
+"""GarminAI Public v0.9.1: isolated Neon OAuth MCP staging, fictional tools only."""
 import os
 from contextlib import asynccontextmanager, AsyncExitStack
 from starlette.applications import Starlette
@@ -53,10 +53,10 @@ staging_mcp_asgi = staging_mcp.streamable_http_app()
 oauth_staging_gateway = StagingOAuthGate(staging_mcp_asgi)
 
 async def health(_request):
-    return JSONResponse({"status":"ok", "version":"0.9.0", "mode":"DEMO_ONLY", "garmin_oauth":"NOT_CONNECTED", "auth":"DEMO_BEARER_GATE"})
+    return JSONResponse({"status":"ok", "version":"0.9.1", "mode":"DEMO_ONLY", "garmin_oauth":"NOT_CONNECTED", "auth":"DEMO_BEARER_GATE"})
 
 async def index(_request):
-    return JSONResponse({"project":"GarminAI Public", "version":"0.9.0", "mode":"DEMO_ONLY", "message":"Only fictional activity data. MCP endpoint: /mcp"})
+    return JSONResponse({"project":"GarminAI Public", "version":"0.9.1", "mode":"DEMO_ONLY", "message":"Only fictional activity data. MCP endpoint: /mcp"})
 
 async def integration_readiness(_request):
     # Only configuration booleans; never values. Not an invitation to connect Garmin yet.

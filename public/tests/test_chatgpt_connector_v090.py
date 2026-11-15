@@ -1,4 +1,4 @@
-"""0.9.0 local, offline tests for the *operator-enabled* ChatGPT client.
+"""0.9.1 local, offline tests for the *operator-enabled* ChatGPT client.
 
 These tests do NOT establish that ChatGPT/Neon live connection succeeds.
 """
@@ -61,7 +61,7 @@ class ChatGPTRegistrationTests(unittest.TestCase):
                 self.assertFalse(configuration({**CHATGPT_ENV,'GARMINAI_CHATGPT_OAUTH_CALLBACK':bad})['enabled'])
         for change in (
             {'GARMINAI_CHATGPT_OAUTH_CLIENT_ID': CLIENT},
-            {'GARMINAI_CHATGPT_OAUTH_CLIENT_ID': 'https://chatgpt.com/oauth/client.json'},
+            {'GARMINAI_CHATGPT_OAUTH_CLIENT_ID': 'https://chatgpt.com/oauth/evil.json'},
             {'GARMINAI_MCP_AUTH_TOOLS_STAGING_ENABLED': '0'},
             {'GARMINAI_OAUTH_E2E_STAGING_ENABLED': '0'},
             {'RENDER_EXTERNAL_HOSTNAME':'fake.onrender.com'},
@@ -70,6 +70,35 @@ class ChatGPTRegistrationTests(unittest.TestCase):
                 c=configuration({**CHATGPT_ENV,**change})
                 self.assertFalse(c['enabled'])
                 self.assertNotEqual(c['issues'], [])
+
+    def test_official_cimd_identity_is_explicitly_allowlisted(self):
+        from garminai_public.chatgpt_staging import _CHATGPT_CIMD_ID
+        env={**CHATGPT_ENV, 'GARMINAI_CHATGPT_OAUTH_CLIENT_ID':_CHATGPT_CIMD_ID}
+        c=configuration(env)
+        self.assertTrue(c['enabled'])
+        self.assertEqual(c['client_id'],_CHATGPT_CIMD_ID)
+        with patch.dict('os.environ',env,clear=True):
+            cfg=ui_config(env)
+            req=SimpleNamespace(query_params={'client_id':_CHATGPT_CIMD_ID})
+            selected=_profile_for_signed_request(req,cfg)
+            self.assertEqual(selected['client_id'],_CHATGPT_CIMD_ID)
+            self.assertEqual(selected['callback'],CHATGPT_CALLBACK)
+            html=asyncio.run(login_page(req)).body.decode()
+            self.assertIn('data-chatgpt-client="true"',html)
+            self.assertIn('https://chatgpt.com/oauth/client.json',html)
+            st=json.loads(asyncio.run(status(None)).body)
+            self.assertEqual(st['version'],'0.9.1')
+            self.assertEqual(st['expected_neon_registration'],'CIMD_DISCOVERY_NO_MANUAL_CLIENT')
+        for override in (
+            {'GARMINAI_CHATGPT_OAUTH_CLIENT_ID':'https://evil.test/client.json'},
+            {'GARMINAI_CHATGPT_OAUTH_CLIENT_ID':'https://chatgpt.com/oauth/other.json'},
+            {'GARMINAI_CHATGPT_OAUTH_CLIENT_ID':'http://chatgpt.com/oauth/client.json'},
+            {'GARMINAI_CHATGPT_OAUTH_CALLBACK':'https://chatgpt.com/connector/oauth/callback1234'},
+        ):
+            with self.subTest(override=override):
+                checked=configuration({**env,**override})
+                self.assertFalse(checked['enabled'])
+                self.assertTrue(checked['issues'])
 
     def test_untrusted_query_only_selects_operator_profile(self):
         cfg=ui_config(CHATGPT_ENV)
@@ -135,6 +164,9 @@ class ChatGPTGateTests(unittest.TestCase):
         async def scenario():
             self.assertEqual((await request(CHATGPT_ENV,signed(CHATGPT_ID)))[0],200)
             self.assertEqual((await request(CHATGPT_ENV,signed(CLIENT)))[0],200)
+            cimd_env={**CHATGPT_ENV,'GARMINAI_CHATGPT_OAUTH_CLIENT_ID':'https://chatgpt.com/oauth/client.json'}
+            self.assertEqual((await request(cimd_env,signed('https://chatgpt.com/oauth/client.json',scope='openid email offline_access')))[0],200)
+            self.assertEqual((await request(cimd_env,signed('https://chatgpt.com/oauth/evil.json')))[0],401)
             for token in (signed('unknown-client'),signed(CHATGPT_ID,aud='https://evil.test/mcp'),
                           signed(CHATGPT_ID,scope='profile'),signed(CHATGPT_ID,exp=now-200)):
                 code,events=await request(CHATGPT_ENV,token)
@@ -143,7 +175,7 @@ class ChatGPTGateTests(unittest.TestCase):
                 self.assertIn(b'resource_metadata=',hdr[b'www-authenticate'])
             self.assertEqual((await request(ENV,signed(CHATGPT_ID)))[0],401)
             self.assertEqual((await request(ENV,signed(CLIENT)))[0],200)
-            self.assertEqual(len(passed),3)
+            self.assertEqual(len(passed),4)
             self.assertTrue(all('garminai.oauth_staging_principal' in scope for scope in passed))
             self.assertTrue(all(not any(k.lower()==b'authorization' for k,v in scope['headers']) for scope in passed))
         asyncio.run(scenario())

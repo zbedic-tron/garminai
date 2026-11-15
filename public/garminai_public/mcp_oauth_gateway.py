@@ -1,4 +1,4 @@
-"""v0.9.0: isolated, opt-in Neon JWT bearer gate for fictional MCP tools.
+"""v0.9.1: isolated, opt-in Neon JWT bearer gate for fictional MCP tools.
 
 No Garmin connectivity and no real athlete data. A separate operator opt-in is
 required; the legacy /mcp demo bearer gate and database identity are unchanged.
