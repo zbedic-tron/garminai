@@ -23,6 +23,22 @@ function signedQuery(overrides={}) {
   p.append('sig','NOT_A_REAL_SIGNATURE_PROVIDER_CHECKS_THIS');
   return '?' + p.toString();
 }
+// Reproduces Neon's actual redirect syntax: ba_param=ba_param is intentional.
+// The signature is synthetic; these tests check local structure, not crypto.
+function neonSignedQuery() {
+  const fields = {
+    response_type:'code', redirect_uri:CALLBACK, scope:'openid',
+    state:'S'.repeat(43), client_id:CLIENT, prompt:'consent',
+    code_challenge:'C'.repeat(43), code_challenge_method:'S256',
+    resource:RESOURCE, exp:String(Math.floor(NOW/1000)+600), ba_iat:String(NOW)
+  };
+  const p = new URLSearchParams();
+  for (const [k,v] of Object.entries(fields)) p.append(k,v);
+  for (const name of ['ba_iat','ba_param',...Object.keys(fields).filter(k=>k!=='ba_iat')])
+    p.append('ba_param',name);
+  p.append('sig','synthetic/Base64+sig==');
+  return '?' + p.toString();
+}
 const flush = async () => {for(let i=0;i<40;i++) await Promise.resolve();};
 function page({mode='consent', query=signedQuery(), active=true, reply, pending=null}={}) {
   const calls=[], navigations=[], nodes={};
@@ -61,6 +77,31 @@ function page({mode='consent', query=signedQuery(), active=true, reply, pending=
 }
 (async()=>{
   let checks=0;
+  // Regression: Neon signed query includes ba_param among its signed names.
+  const liveShapeLogin=page({mode:'login',query:neonSignedQuery(),active:false}); await flush();
+  assert.equal(liveShapeLogin.element('signin').disabled,false);
+  assert.equal(liveShapeLogin.calls.length,1);
+  assert.ok(!liveShapeLogin.element('status').textContent.includes('INVALID_SIGNED_REQUEST'));checks++;
+
+  const liveShapeConsent=page({mode:'consent',query:neonSignedQuery()}); await flush();
+  assert.equal(liveShapeConsent.element('allow').disabled,false);
+  await liveShapeConsent.element('allow').click(); await flush();
+  const consentPost=liveShapeConsent.calls.find(c=>c.url.endsWith('/oauth2/consent'));
+  assert.ok(consentPost);
+  const sent=new URLSearchParams(JSON.parse(consentPost.opts.body).oauth_query);
+  assert.ok(sent.getAll('ba_param').includes('ba_param'));
+  assert.equal(sent.get('sig'),'synthetic/Base64+sig==');checks++;
+
+  // Duplicating a single-valued signed name must still be rejected.
+  const duplicateSigned = page({query:neonSignedQuery()+'&client_id=another-client'}); await flush();
+  assert.equal(duplicateSigned.calls.length,0);
+  assert.match(duplicateSigned.element('status').textContent,/INVALID_SIGNED_REQUEST/);checks++;
+
+  // Duplicating the list entry itself remains invalid.
+  const duplicateList = page({query:neonSignedQuery()+'&ba_param=client_id'}); await flush();
+  assert.equal(duplicateList.calls.length,0);
+  assert.match(duplicateList.element('status').textContent,/INVALID_SIGNED_REQUEST/);checks++;
+
   const missing=page({query:''}); await flush();
   assert.equal(missing.calls.length,0); assert.equal(missing.element('allow').disabled,true);checks++;
 

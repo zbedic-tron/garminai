@@ -1,5 +1,5 @@
 "use strict";
-// GarminAI v0.8.7.1: one known staging client only; Neon validates the signed
+// GarminAI v0.8.7.2: one known staging client only; Neon validates the signed
 // query when handling authorization/consent. This browser does NOT verify sig.
 (() => {
   const root = document.querySelector('main[data-mode]');
@@ -28,7 +28,12 @@
         params.toString().length > 8192) return null;
     const keys = new Set(['sig', 'ba_param', ...names]);
     const query = new URLSearchParams([...params].filter(([key]) => keys.has(key)));
-    for (const name of names) if (query.getAll(name).length !== 1) return null;
+    // Neon includes 'ba_param' in the signed name list itself. Its repeated
+    // values enumerate signed fields; it is not a single-valued OAuth field.
+    // All other declared signed parameters must appear exactly once.
+    for (const name of names) {
+      if (name !== 'ba_param' && query.getAll(name).length !== 1) return null;
+    }
     if (!names.includes('client_id')) return null;
     return query;
   }

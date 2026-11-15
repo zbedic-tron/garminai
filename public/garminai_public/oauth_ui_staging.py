@@ -1,4 +1,4 @@
-"""GarminAI v0.8.7.1: managed Neon OAuth for one registered staging client.
+"""GarminAI v0.8.7.2: managed Neon OAuth for one registered staging client.
 
 No client-side signature verification is claimed. Neon verifies signed oauth_query
 when consenting and validates authorize requests. Actual MCP/Garmin stays disabled.
@@ -100,7 +100,7 @@ async def consent_page(request):
 async def ui_status(request):
     c = configuration()
     return JSONResponse({
-        "version":"0.8.7.1", "mode":"STAGING_ONLY",
+        "version":"0.8.7.2", "mode":"STAGING_ONLY",
         "oauth_ui_staging_enabled": c["enabled"],
         "oauth_ui_config_errors": c["issues"] if c["requested"] else [],
         "provider_enabled_by_this_app": False,
@@ -111,7 +111,7 @@ async def ui_status(request):
 
 
 _JS = r'''"use strict";
-// GarminAI v0.8.7.1: one known staging client only; Neon validates the signed
+// GarminAI v0.8.7.2: one known staging client only; Neon validates the signed
 // query when handling authorization/consent. This browser does NOT verify sig.
 (() => {
   const root = document.querySelector('main[data-mode]');
@@ -140,7 +140,12 @@ _JS = r'''"use strict";
         params.toString().length > 8192) return null;
     const keys = new Set(['sig', 'ba_param', ...names]);
     const query = new URLSearchParams([...params].filter(([key]) => keys.has(key)));
-    for (const name of names) if (query.getAll(name).length !== 1) return null;
+    // Neon includes 'ba_param' in the signed name list itself. Its repeated
+    // values enumerate signed fields; it is not a single-valued OAuth field.
+    // All other declared signed parameters must appear exactly once.
+    for (const name of names) {
+      if (name !== 'ba_param' && query.getAll(name).length !== 1) return null;
+    }
     if (!names.includes('client_id')) return null;
     return query;
   }
