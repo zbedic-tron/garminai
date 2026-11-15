@@ -1,3 +1,7 @@
+# GarminAI Public v1.1.1 — OFFLINE ingress + durable inbox rehearsal
+
+**Garmin push javno ostaje 503; Garmin OAuth i ChatGPT demo su sačuvani.** Nova SQL migracija 005 i offline testovi; bez Garmin IP opsega u javnom kodu. Detalji: `docs/V111_GARMIN_PUSH_INGRESS_OFFLINE_SR.md`.
+
 # GarminAI Public v1.1.0 — Garmin push durable rehearsal (offline only)
 
 **v1.1.0:** dodata isključivo offline trajna proba Garmin Activity push JSON događaja sa RLS i evidencijom duplikata. Javni Garmin push, stvarni MCP podaci i AI sharing OSTAJU ISKLJUČENI. Detalji: `docs/V110_PUSH_REHEARSAL_SR.md`.

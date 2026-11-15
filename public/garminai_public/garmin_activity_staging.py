@@ -160,7 +160,7 @@ def integration_status(env=None):
     from .garmin_link_v101 import configuration as link_config
     link = link_config(env)
     return {
-        'version':'1.1.0', 'phase':'GARMIN_PUSH_DURABLE_REHEARSAL',
+        'version':'1.1.1', 'phase':'GARMIN_PUSH_VERIFIED_INGRESS_PREPARATION',
         'garmin_starter_delivery':'PUSH_ONLY',
         'oauth_connect_enabled':link['enabled'],
         'oauth_link_requested':link['requested'],
@@ -170,6 +170,9 @@ def integration_status(env=None):
         'mcp_real_garmin_data_enabled':False,
         'parser_offline_rehearsal':'activities_summary_only',
         'durable_offline_rehearsal_ready_after_migration':True,
+        'offline_durable_inbox_requires_migration_005': True,
+        'render_source_ip_trust_verified': False,
+        'verified_live_ingress_enabled': False,
         'garmin_sender_authentication_verified':False,
         'blocked_until':[
             'official_push_sender_authentication_verified',
@@ -178,5 +181,5 @@ def integration_status(env=None):
             'replay_safe_durable_ingestion_and_deletion',
             'garmin_terms_and_ai_data_sharing_review',
         ],
-        'next':'Apply 004 SQL migration, then keep all Garmin Endpoint Configuration destinations disabled pending verified sender authentication.',
+        'next':'Apply 005 offline inbox migration; keep live Garmin endpoints disabled until verified ingress and license requirements are met.',
     }
