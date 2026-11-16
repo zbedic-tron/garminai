@@ -1,4 +1,4 @@
-"""v1.1.6: public-safe, read-only Garmin push operational risk report.
+"""v1.1.7: public-safe, read-only Garmin push operational risk report.
 
 This module is a diagnostic *not* an authentication module, health monitor,
 proof of IP provenance, reliable background worker, or permission to ingest.
@@ -35,7 +35,7 @@ def readiness_report(env: Mapping[str, str] | None = None) -> dict:
     rehearsal = env.get("GARMINAI_PUSH_REHEARSAL_STAGING_ENABLED") == "1"
     accidentally_requested = env.get("GARMINAI_GARMIN_PUSH_ENABLED") == "1"
     return {
-        "version": "1.1.6",
+        "version": "1.1.7",
         "mode": "READ_ONLY_DIAGNOSTIC",
         "readiness": "BLOCKED",
         "live_garmin_push_enabled": False,

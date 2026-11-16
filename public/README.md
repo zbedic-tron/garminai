@@ -1,3 +1,7 @@
+# GarminAI Public v1.1.7 — Synthetic Edge-to-Neon Bridge (opt-in)
+
+**Novina:** osmi MCP alat `run_synthetic_edge_to_neon_rehearsal` može uz izričitu potvrdu sintetički spojiti postojeću Cloudflare D1 laboratoriju i Neon RLS inbox. Nema javnog Render write endpointa, čitanja stvarnih Garmin aktivnosti ni AI deljenja. Pre instalacije obavezno pročitati `V117_START_HERE_SR.md` i `docs/V117_EDGE_TO_NEON_BRIDGE_SR.md`. Za test su potrebni odvojeni BRIDGE_TOKEN i privremeni operator prekidač; nakon testa isključiti. Produkcioni push i dalje 503 i `readiness: BLOCKED`. **0 € dodatnih troškova.**
+
 # v1.1.6 — optional Cloudflare Workers Free / D1 synthetic-only deployment lab (2026-11-16)
 
 The existing Garmin OAuth/Neon/MCP application remains unchanged in its real-data safeguards. New *optional* self-contained Windows PowerShell setup at `edge_lab_v116/Setup-Cloudflare-Free.ps1` creates a separate Cloudflare Workers Free/D1 lab only after manual Free-plan confirmation. It accepts **only fictional synthetic events**, uses a Cloudflare secret and is **never an authorized Garmin webhook**. See `edge_lab_v116/README_SR.md` and `docs/PROJECT_CONTINUITY_SR.md`. No new Render env vars, Neon migrations, Garmin endpoint activation or AI data sharing.

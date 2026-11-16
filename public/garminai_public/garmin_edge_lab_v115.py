@@ -8,7 +8,7 @@ from starlette.responses import JSONResponse
 
 def edge_lab_status() -> dict:
     return {
-        "version": "1.1.6",
+        "version": "1.1.7",
         "mode": "OPTIONAL_REMOTE_SYNTHETIC_EDGE_LAB",
         "edge_worker_deployed_by_garminai": False,
         "edge_lab_handles_real_garmin_push": False,
@@ -23,7 +23,7 @@ def edge_lab_status() -> dict:
         "synthetic_only_payloads": True,
         "manual_partner_approval_and_privacy_review_required": True,
         "no_payment_or_external_service_is_required_for_this_deployment": True,
-        "next": "Optional: deploy synthetic-only Cloudflare Worker/D1 using the separate Free-plan lab guide; NEVER configure Garmin Endpoint Configuration.",
+        "next": "Cloudflare D1 synthetic lab confirmed by operator. v1.1.7 optional authenticated MCP pull tests D1-to-Neon only; NEVER configure Garmin Endpoint Configuration.",
     }
 
 

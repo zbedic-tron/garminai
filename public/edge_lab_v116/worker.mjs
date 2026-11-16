@@ -91,4 +91,13 @@ export async function handleSynthetic(request, env) {
   return reply(200,'DURABLY_ACCEPTED_SYNTHETIC');
 }
 
-export default {fetch: handleSynthetic};
+import {handleBridge} from './bridge_v117.mjs';
+
+async function fetchRouter(request, env) {
+  let path;
+  try { path = new URL(request.url).pathname; } catch { return new Response('',{status:400}); }
+  if (path.startsWith('/_lab/bridge/')) return handleBridge(request,env);
+  return handleSynthetic(request,env);
+}
+
+export default {fetch: fetchRouter};

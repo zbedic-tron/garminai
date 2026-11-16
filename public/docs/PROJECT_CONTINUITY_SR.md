@@ -1,3 +1,17 @@
+# GarminAI Public — OPERATIVNI DODATAK v1.1.7 (2026-11-16)
+
+**Poslednje korisnički potvrđeno stanje:** Render v1.1.6 (healthz, readiness BLOCKED, edge-lab dijagnostika); Cloudflare Workers Free + D1 test sa lokalnom skriptom v1.1.6.4 je stvarno prošao: `first_http=200`, `repeat_http=200`, `conflict_http=409`, `writes_reported_successful=true`, bez realnih Garmin podataka. Prvi pokušaj je uspeo iz trećeg pokušaja. Raniji Neon sintetički test v1.1.3 je bio PASS. Garmin OAuth link ranije potvrđen kao `linked:true`; MCP pristup stvarnim aktivnostima i AI sharing false. **v1.1.7 kod je pripremljen i lokalno testiran, ali još nije potvrđen na Render/Cloudflare/Neon.**
+
+- v1.1.7: novi `run_synthetic_edge_to_neon_rehearsal` (8. MCP alat). Autorizovan Neon subjekt, zaseban HMAC-pseudonim korisnika za Cloudflare (bez Garmin ID), D1 `seed` + `claim`, transakcioni Neon RLS `INSERT ... ON CONFLICT`, D1 `ack` tek posle commit-a. Ponovni pokušaj u slučaju izgubljenog ACK-a ne pravi duplikat. Nema nove Neon migracije.
+- Worker v1.1.7 dodaje novi strogo sintetički skup ruta `/_lab/bridge/*` i posebnu **novu D1 tabelu** `lab_bridge_v117` unutar postojeće baze `garminai-synthetic-edge-v116`. Originalni `/ _lab/synthetic` v1.1.6 tok ostaje; postojeći `LAB_TOKEN` ne rotirati.
+- Lokalno instaliranje: `edge_lab_v116/Install-Bridge-V117.ps1 -Deploy`; potvrda `FREE` i `SYNTHETIC`; u postojećem `D:\Downloads\GarminAI-Public-v1.1.6\public\edge_lab_v116`. NOVI `BRIDGE_TOKEN` u Cloudflare tajnama, jednokratno prenet samo Windows clipboard-om u Render Environment `GARMINAI_EDGE_BRIDGE_TOKEN`. Dve druge Render promenljive: `GARMINAI_EDGE_BRIDGE_URL=https://garminai-synthetic-edge-v116.zbedic.workers.dev` i `GARMINAI_EDGE_BRIDGE_STAGING_ENABLED=1` samo tokom testa. Posle vratiti `0` i očistiti clipboard.
+- Operator test: osvežiti ChatGPT GarminAI MCP tools; pozvati novi alat sa `confirmation="RUN_SYNTHETIC_EDGE_TO_NEON"`. Očekuje se `status:PASS`, `d1_acknowledged:true`, `neon_duplicate_prevented:true`. Ako je `NEON_COMMITTED_EDGE_ACK_PENDING`, izvršiti bezbedno ponavljanje istog poziva nakon provere.
+- Važno: **worker URL nikada ne uneti u Garmin Endpoint Configuration.** Nijedan Garmin push događaj ili AI analiza stvarnih podataka nisu uključeni. `readiness:BLOCKED` ostaje zbog neproverene autentifikacije pošiljaoca, Render Free cold start ograničenja i ugovornog AI/treća-strana pregleda. Sve pod politikom **0 € dodatnih troškova** i diferencijalnim ZIP-ovima ispod 100 fajlova.
+
+Za instalaciju obavezno koristiti `V117_START_HERE_SR.md` i `docs/V117_EDGE_TO_NEON_BRIDGE_SR.md`, bez ručnog menjanja koda, migracija 001–005 ili postojećeg GitHub/Render/Garmin naloga.
+
+---
+
 # GarminAI Public — operativni dodatak v1.1.6 (2026-11-16)
 
 **Poslednja POTVRĐENA verzija na Renderu: 1.1.5.** Korisnik je poslao tri JSON odgovora: `/healthz` status ok 1.1.5; `/garmin/ingress/readiness` BLOCKED i testni prekidač false; `/garmin/ingress/edge-lab` OFFLINE_SYNTHETIC_EDGE_LAB. Garmin nalog je ranije potvrđen kao `linked:true` na MCP, ali AI pristup je false. Pripremljena verzija **1.1.6 nije još instalirana, niti je Cloudflare Worker deployovan**; to se mora proveriti naknadno.

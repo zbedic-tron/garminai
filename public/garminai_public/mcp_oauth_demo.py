@@ -86,3 +86,16 @@ def run_synthetic_push_rehearsal(confirmation: str, ctx: Context) -> dict:
     """
     from .garmin_push_e2e_v112 import rehearse_from_context
     return rehearse_from_context(ctx, confirmation)
+
+
+@staging_mcp.tool()
+def run_synthetic_edge_to_neon_rehearsal(confirmation: str, ctx: Context) -> dict:
+    """Explicitly move ONE fictional receipt Cloudflare D1 -> Neon via the caller's verified subject.
+
+    Requires RUN_SYNTHETIC_EDGE_TO_NEON and the operator-staged bridge secret +
+    GARMINAI_EDGE_BRIDGE_STAGING_ENABLED=1. D1 receipt is ACKed only after
+    Neon durable commit. Retry is idempotent. No real Garmin activities,
+    public Render webhook, Garmin push or AI data sharing.
+    """
+    from .garmin_edge_to_neon_v117 import deliver_from_context
+    return deliver_from_context(ctx,confirmation)
