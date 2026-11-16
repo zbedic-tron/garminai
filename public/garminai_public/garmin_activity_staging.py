@@ -160,7 +160,7 @@ def integration_status(env=None):
     from .garmin_link_v101 import configuration as link_config
     link = link_config(env)
     return {
-        'version':'1.1.7', 'phase':'PUSH_EDGE_LAB_SYNTHETIC_ONLY',
+        'version':'1.1.8', 'phase':'PUSH_EDGE_LAB_SYNTHETIC_ONLY',
         'garmin_starter_delivery':'PUSH_ONLY',
         'oauth_connect_enabled':link['enabled'],
         'oauth_link_requested':link['requested'],

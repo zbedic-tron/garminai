@@ -1,0 +1,117 @@
+{
+  "version": "1.1.8",
+  "patch_applies_to": "1.1.7",
+  "date": "2026-11-16",
+  "mode": "SYNTHETIC_DELIVERY_RECOVERY_ONLY",
+  "files": [
+    {
+      "path": "public/docs/PROJECT_CONTINUITY_SR.md",
+      "sha256": "a1cf63a4072b66da935781ceba8733f59535989e9edd1afed85d2a61f9f1bf36",
+      "bytes": 24678
+    },
+    {
+      "path": "public/docs/V118_DELIVERY_RECOVERY_SR.md",
+      "sha256": "aaed892ef7b83cbfb332b08d7039508a4cad0a510355c991c4af1f1ae6e8d215",
+      "bytes": 2537
+    },
+    {
+      "path": "public/edge_lab_v116/Install-Recovery-V118.ps1",
+      "sha256": "cda4cd2f143560f91556b82e7cd06f48f4ff2d95025eac5a24265f17c008c815",
+      "bytes": 5234
+    },
+    {
+      "path": "public/edge_lab_v116/recovery_v118.mjs",
+      "sha256": "549a2c1eed76ae9e0aa94572fa104b8e8e7d6a53b7528a4350ad5671c234ddd6",
+      "bytes": 5760
+    },
+    {
+      "path": "public/edge_lab_v116/schema_recovery_v118.sql",
+      "sha256": "692c57a72358dcce560419ebc0c4b9a4c870330c8e7085eed1dc2a8263ba8d85",
+      "bytes": 777
+    },
+    {
+      "path": "public/edge_lab_v116/test_recovery_v118.mjs",
+      "sha256": "8315988294e8641f8d7e687abad7492c1acf93f35fa14fcd424e5c4c2e6923f7",
+      "bytes": 8209
+    },
+    {
+      "path": "public/edge_lab_v116/worker.mjs",
+      "sha256": "f3a008f324a05f0a4c06547d3f810dfd51602ded2efc4a59450afaa83aa2d105",
+      "bytes": 5372
+    },
+    {
+      "path": "public/garminai_public/garmin_activity_staging.py",
+      "sha256": "e6b9b486a1de8cc2dc3b23298a07d35d56510246aa675eab0a31d88d66bd6f85",
+      "bytes": 7945
+    },
+    {
+      "path": "public/garminai_public/garmin_delivery_recovery_status_v118.py",
+      "sha256": "19d65f83f725b9fcfc79c15e9a4dd160b0906a91452655aadad85aada75a92e0",
+      "bytes": 1177
+    },
+    {
+      "path": "public/garminai_public/garmin_delivery_recovery_v118.py",
+      "sha256": "250b83c13a8a189424e01f00d621df35976a9f2d88fea446cf295d5da1833e9b",
+      "bytes": 11411
+    },
+    {
+      "path": "public/garminai_public/http_server.py",
+      "sha256": "679a36ac615e19bea9cf3aed230af57216524ecd0dd66b4a35e602bc022578cb",
+      "bytes": 7336
+    },
+    {
+      "path": "public/garminai_public/mcp_oauth_demo.py",
+      "sha256": "525655b08575f5bb6b8308b14769a3d1cf5d75b8580cea29cd497b5cabd288b2",
+      "bytes": 5627
+    },
+    {
+      "path": "public/tests/test_auth_staging_v0843.py",
+      "sha256": "29cac04e91ad1be20668d0b1ae46a90923c53d5cd27bb13190622d54bb8fefd5",
+      "bytes": 1490
+    },
+    {
+      "path": "public/tests/test_garmin_activity_staging_v100.py",
+      "sha256": "b5a500af2c77ba53cce8faae6561050c30fe9b8b57a2b04ae589978a4b75f4eb",
+      "bytes": 7629
+    },
+    {
+      "path": "public/tests/test_garmin_delivery_recovery_status_v118.py",
+      "sha256": "e74a66634217ac77b9a9e6b5d765381610c55de8e070f71e53852b7463cabe70",
+      "bytes": 1856
+    },
+    {
+      "path": "public/tests/test_garmin_delivery_recovery_v118.py",
+      "sha256": "93040f2a0c89b0c47d4c6051c91bb3580cb59f5c8908679e751061774b190a66",
+      "bytes": 10282
+    },
+    {
+      "path": "public/tests/test_garmin_edge_lab_v115.py",
+      "sha256": "a2fdb5009d8586927fac8b7df7b474cfc1d315ce95cefaf2f5e80d0417c1ad77",
+      "bytes": 3570
+    },
+    {
+      "path": "public/tests/test_garmin_recovery_schema_v118.py",
+      "sha256": "76d07f3d5ec8b437c58f0d7aa12f025454ccae8825084e102a860d43654b0a66",
+      "bytes": 2737
+    },
+    {
+      "path": "public/tests/test_mcp_stabilization_v092.py",
+      "sha256": "5877f014437480fcefe97ce57e5773ba345041cc249b3d92d6c6685ca4588d5b",
+      "bytes": 10389
+    },
+    {
+      "path": "public/tests/test_neon_auth_v083.py",
+      "sha256": "c402273a67dd7f43404091f3cb4b2f8bf3eed60b15751c17419c4adb6c756add",
+      "bytes": 3352
+    },
+    {
+      "path": "public/tests/test_oauth_ui_v086.py",
+      "sha256": "e8f1d27d9e3c11bb729bec35b61a80c50bcdfb12f406541ae631f5a388618a64",
+      "bytes": 5729
+    }
+  ],
+  "no_new_neon_migration": true,
+  "no_secret_or_payment_configuration": true,
+  "live_garmin_push_enabled": false,
+  "real_garmin_ai_data_enabled": false
+}

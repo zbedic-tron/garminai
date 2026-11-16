@@ -141,7 +141,7 @@ class GarminHttpStagingContract(unittest.TestCase):
         with TestClient(app) as client:
             r = client.get('/garmin/integration/status')
             self.assertEqual(r.status_code, 200)
-            self.assertEqual(r.json()['version'], '1.1.7')
+            self.assertEqual(r.json()['version'], '1.1.8')
             self.assertIs(r.json()['push_ingestion_enabled'], False)
             self.assertEqual(r.headers['cache-control'], 'no-store')
             r = client.post('/garmin/push/activities', json=FAKE)

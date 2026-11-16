@@ -56,7 +56,7 @@ class EdgeLabAudit(unittest.TestCase):
         self.assertNotIn('GARMIN_CLIENT_SECRET',worker)
         source=(ROOT/'garminai_public/http_server.py').read_text()
         self.assertIn('Route("/garmin/ingress/edge-lab", public_edge_lab_status)',source)
-        self.assertIn('"version":"1.1.7"',source)
+        self.assertIn('"version":"1.1.8"',source)
         for path in ('activities','activity-details','activity-files','manually-updated',
                      'moveiq','deregistrations','permissions-change'):
             self.assertIn('Route("/garmin/push/'+path+'", garmin_push_disabled, methods=["POST"])',source)

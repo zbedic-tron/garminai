@@ -1,3 +1,37 @@
+# GarminAI Public — operativni dodatak v1.1.8 (2026-11-16)
+
+**Trenutno POTVRĐENO od korisnika:** Render `/healthz` verzija **1.1.7**, `/garmin/ingress/readiness` **BLOCKED**, a ChatGPT MCP `run_synthetic_edge_to_neon_rehearsal` je stvarno prijavio **PASS** za sintetički Cloudflare D1 → Neon → D1 ACK, uz idempotentnost i korisničku izolaciju. Cloudflare Workers Free (`zbedic.workers.dev`) je prethodno potvrdio v1.1.6.4 200/200/409 i D1 trajni upis. Veza Garmin OAuth ranije potvrđena `linked:true`; pristup stvarnim Garmin aktivnostima i AI deljenje ostaju isključeni. **v1.1.8 je OVIM PAKETOM pripremljena, ali NE JOŠ deployovana ni testirana na stvarnom Cloudflare-u/Renderu.** Stari tekst ispod je istorijski i može imati prethodne verzije kao „aktuelne“.
+
+## Novost 1.1.8 — Synthetic Delivery Resilience & Recovery
+
+- Pored postojećeg v1.1.7 bridge-a, nova *zasebna* sintetička D1 tabela `lab_recovery_v118` (jedan fiktivni receipt po verifikovanom korisničkom subject-u za ovu verziju), HMAC-pseudonim, bez Garmin ID, GPS, pulsa, tokena ili realnih podataka. Postojeće v1.1.6/v1.1.7 tabele ostaju netaknute.
+- Novi Cloudflare Worker ruting `/_lab/recovery/{status,seed,claim,ack,inspect}`. Postojeći `BRIDGE_TOKEN` se **ponovo koristi i NE rotira**. Isti D1 (`garminai-synthetic-edge-v116`). Status je read-only, svi upisi su striktno sintetički i auth-gated.
+- Render `healthz` podignut na 1.1.8; nova javna read-only ruta `/garmin/ingress/delivery-recovery` samo za konfiguracionu dijagnostiku, `production_readiness:BLOCKED`.
+- MCP **dva nova alata**: `run_synthetic_delivery_recovery(confirmation, scenario)` za izričito potvrđene sintetičke fault simulacije (operator flag `GARMINAI_EDGE_RECOVERY_STAGING_ENABLED=1`); `get_synthetic_delivery_recovery_status` za čitanje D1 ACK/PENDING brojača samo za prijavljenog Neon subjekta. Sa 8 na **10 MCP alata** — osvežiti `Refresh tools`.
+- Szenariji: `SIMULATE_RENDER_DELAY` namerno stane posle D1 seed; `SIMULATE_NEON_UNAVAILABLE` namerno preskoči Neon (nema pravog outage-a); `SIMULATE_D1_ACK_UNAVAILABLE` potvrdi fiktivni Neon commit ali namerno preskoči ACK; `RECOVER` idempotentno ponovi Neon fiktivni upis i tek zatim zabeleži D1 ACK. Povratna informacija je korisnički identitet-free i bez tajni.
+- Ništa se ne obrađuje automatski dok Render spava. Ovo **nije dokaz stvarnog 30-s Garmin SLA, ni stvarna garancija isporuke**, već kontrolisano testiranje procesa oporavka. Bez plaćenih planova (0 €), bez Garmin push događaja i AI real-data deljenja.
+
+## Postupak
+
+1. GitHub ZIP `GarminAI-Public-v1.1.8-Synthetic-Delivery-Recovery-Delta.zip` raspakovati preko postojećeg `public/` i commit. Render `/healthz` očekuje 1.1.8, `/garmin/ingress/delivery-recovery` očekuje `BLOCKED` i `operator_enabled:false`.
+2. Lokalni Windows folder **zadržava postojeći** `D:\Downloads\GarminAI-Public-v1.1.6\public\edge_lab_v116\wrangler.toml` (ne prepisuje se). Diferencijalni ZIP prekopirati na `D:\Downloads\GarminAI-Public-v1.1.6`, pa u `edge_lab_v116` pokrenuti `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Install-Recovery-V118.ps1 -Deploy`. Skripta zahteva `FREE` i `SYNTHETIC`, primeni D1 `schema_recovery_v118.sql` idempotentno na **postojeći D1** i deployuje kod bez promene tajni, nikada ne registruje Garmin endpoint.
+3. Cloudflare GET `https://garminai-synthetic-edge-v116.zbedic.workers.dev/_lab/recovery/status` → `version:1.1.8`, `recovery_enabled:true`, `real_garmin_push_enabled:false`.
+4. Render Environment postojeće `GARMINAI_EDGE_BRIDGE_URL` i `GARMINAI_EDGE_BRIDGE_TOKEN` ne dirati. Postaviti privremeno `GARMINAI_EDGE_RECOVERY_STAGING_ENABLED=1`; druge rehearsal prekidače ostaviti 0. Posle deploymenta Refresh tools i redom pozvati `run_synthetic_delivery_recovery` za četiri scenarija: `SIMULATE_RENDER_DELAY`, `SIMULATE_NEON_UNAVAILABLE`, `SIMULATE_D1_ACK_UNAVAILABLE`, `RECOVER`. Na kraju pozvati `get_synthetic_delivery_recovery_status` → `ACKED_SYNTHETIC`. **Odmah nakon testa vratiti recovery flag na 0.**
+5. Sve bezbedne rezultatske JSON odgovore podeliti u razgovoru, **nikada tokene, client secrets, OAuth kod/state ili DATABASE_URL**. Nema nove Neon SQL migracije. D1 SQL ne lepiti u Neon.
+
+## Ograničenja i otvoreni zadaci
+
+- Produkcioni Garmin push je i dalje `503`; `/garmin/ingress/readiness` je `BLOCKED`. Sender authentication/proxy/IP provenance nije rešena, Render Free cold start nema Garmin 30s garantovani rok. Cloudflare sintetički Worker nije ovlašćen za Garmin Device Sourced Data.
+- Garmin License Agreement Rev H posebno ograničava AI/treće strane. Bez izričitog odgovarajućeg pravnog/ugovornog odobrenja ne slati stvarne ili izvedene Garmin podatke u ChatGPT, Cloudflare ili druge neodobrene servise.
+- Projekat je privatni MCP / GitHub + Render Free + Neon + Cloudflare Workers Free. **0 EUR** dodatnih troškova i diferencijalni ZIP **ispod 100 fajlova** su stroga pravila.
+- Testiranje v1.1.8 na stvarnoj infrastrukturi još nije potvrđeno; testovi iz razvoja su lokalni.
+
+## Novi razgovor
+
+Pošalji aktuelni `PROJECT_CONTINUITY_SR.md` i reci: „Nastavljamo GarminAI Public od v1.1.8; koristi dosije, proveri potvrđeni deployment i izbegni ponavljanje postojećih migracija. Održavaj 0 € i dif ZIP <100; stvarni Garmin push i AI ostaju OFF.“
+
+---
+
 # GarminAI Public — OPERATIVNI DODATAK v1.1.7 (2026-11-16)
 
 **Poslednje korisnički potvrđeno stanje:** Render v1.1.6 (healthz, readiness BLOCKED, edge-lab dijagnostika); Cloudflare Workers Free + D1 test sa lokalnom skriptom v1.1.6.4 je stvarno prošao: `first_http=200`, `repeat_http=200`, `conflict_http=409`, `writes_reported_successful=true`, bez realnih Garmin podataka. Prvi pokušaj je uspeo iz trećeg pokušaja. Raniji Neon sintetički test v1.1.3 je bio PASS. Garmin OAuth link ranije potvrđen kao `linked:true`; MCP pristup stvarnim aktivnostima i AI sharing false. **v1.1.7 kod je pripremljen i lokalno testiran, ali još nije potvrđen na Render/Cloudflare/Neon.**

@@ -99,3 +99,31 @@ def run_synthetic_edge_to_neon_rehearsal(confirmation: str, ctx: Context) -> dic
     """
     from .garmin_edge_to_neon_v117 import deliver_from_context
     return deliver_from_context(ctx,confirmation)
+
+
+@staging_mcp.tool()
+def run_synthetic_delivery_recovery(confirmation: str, scenario: str, ctx: Context) -> dict:
+    """Operator-confirmed FICTIONAL D1->Neon failure/recovery scenario (v1.1.8).
+
+    Confirmation: RUN_SYNTHETIC_DELIVERY_RECOVERY; operator must separately
+    set GARMINAI_EDGE_RECOVERY_STAGING_ENABLED=1. Allowed scenario values:
+    SIMULATE_RENDER_DELAY, SIMULATE_NEON_UNAVAILABLE,
+    SIMULATE_D1_ACK_UNAVAILABLE, RECOVER. No actual service outage is induced.
+    Neon writes only in ACK-omission and RECOVER modes; one fixed synthetic
+    event per verified subject. Never reads real Garmin activities or opens
+    Garmin ingress, and does not schedule background retries.
+    """
+    from .garmin_delivery_recovery_v118 import rehearse_from_context
+    return rehearse_from_context(ctx, confirmation, scenario)
+
+
+@staging_mcp.tool()
+def get_synthetic_delivery_recovery_status(ctx: Context) -> dict:
+    """READ ONLY caller-scoped state of fictional D1 recovery receipt.
+
+    Returns only pending/acknowledged and count of claim attempts, never
+    account identifiers, activity contents, Garmin data, or service secrets.
+    Does not independently audit Neon and is not production readiness.
+    """
+    from .garmin_delivery_recovery_v118 import status_from_context
+    return status_from_context(ctx)

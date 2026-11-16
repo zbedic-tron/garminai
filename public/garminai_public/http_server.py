@@ -1,4 +1,4 @@
-"""GarminAI Public v1.1.7: Garmin OAuth link and offline push rehearsal (fail closed), Neon MCP demo unchanged."""
+"""GarminAI Public v1.1.8: Garmin OAuth link and offline push rehearsal (fail closed), Neon MCP demo unchanged."""
 import os
 from contextlib import asynccontextmanager, AsyncExitStack
 from starlette.applications import Starlette
@@ -24,6 +24,7 @@ from .garmin_http_staging import garmin_integration_status, garmin_push_disabled
 from .garmin_push_readiness_v114 import public_readiness
 from .garmin_edge_lab_v115 import public_edge_lab_status
 from .garmin_edge_to_neon_status_v117 import public_bridge_status
+from .garmin_delivery_recovery_status_v118 import public_recovery_status
 from .garmin_link_v101 import configuration as garmin_link_configuration, start_page as garmin_connect_page, authorize as garmin_connect_authorize, callback as garmin_link_callback
 
 hostname = os.environ.get("RENDER_EXTERNAL_HOSTNAME", "").strip()
@@ -58,10 +59,10 @@ staging_mcp_asgi = staging_mcp.streamable_http_app()
 oauth_staging_gateway = StagingOAuthGate(staging_mcp_asgi)
 
 async def health(_request):
-    return JSONResponse({"status":"ok", "version":"1.1.7", "mode":"DEMO_ONLY", "garmin_oauth":"NOT_CONNECTED", "auth":"DEMO_BEARER_GATE"})
+    return JSONResponse({"status":"ok", "version":"1.1.8", "mode":"DEMO_ONLY", "garmin_oauth":"NOT_CONNECTED", "auth":"DEMO_BEARER_GATE"})
 
 async def index(_request):
-    return JSONResponse({"project":"GarminAI Public", "version":"1.1.7", "mode":"DEMO_ONLY", "message":"Only fictional activity data. MCP endpoint: /mcp"})
+    return JSONResponse({"project":"GarminAI Public", "version":"1.1.8", "mode":"DEMO_ONLY", "message":"Only fictional activity data. MCP endpoint: /mcp"})
 
 async def integration_readiness(_request):
     # Only configuration booleans; never values. Not an invitation to connect Garmin yet.
@@ -89,7 +90,7 @@ async def lifespan(_app):
         await stack.enter_async_context(staging_mcp.session_manager.run())
         yield
 
-app = Starlette(routes=[Route("/", index), Route("/healthz", health), Route("/integration/readiness", integration_readiness), Route("/auth/development-status", oauth_development_status), Route("/auth/oauth-ui/status", ui_status), Route("/auth/login", login_page), Route("/auth/staging/google", staging_login), Route("/auth/staging/google.js", staging_js), Route("/auth/consent", consent_page), Route("/auth/oauth-ui.js", ui_js), Route("/garmin/oauth/callback", garmin_callback_disabled), Route("/garmin/oauth/connect", garmin_connect_page), Route("/garmin/oauth/authorize", garmin_connect_authorize, methods=["POST"]), Route("/garmin/integration/status", garmin_integration_status), Route("/garmin/ingress/readiness", public_readiness), Route("/garmin/ingress/edge-lab", public_edge_lab_status), Route("/garmin/ingress/edge-to-neon", public_bridge_status),
+app = Starlette(routes=[Route("/", index), Route("/healthz", health), Route("/integration/readiness", integration_readiness), Route("/auth/development-status", oauth_development_status), Route("/auth/oauth-ui/status", ui_status), Route("/auth/login", login_page), Route("/auth/staging/google", staging_login), Route("/auth/staging/google.js", staging_js), Route("/auth/consent", consent_page), Route("/auth/oauth-ui.js", ui_js), Route("/garmin/oauth/callback", garmin_callback_disabled), Route("/garmin/oauth/connect", garmin_connect_page), Route("/garmin/oauth/authorize", garmin_connect_authorize, methods=["POST"]), Route("/garmin/integration/status", garmin_integration_status), Route("/garmin/ingress/readiness", public_readiness), Route("/garmin/ingress/edge-lab", public_edge_lab_status), Route("/garmin/ingress/edge-to-neon", public_bridge_status), Route("/garmin/ingress/delivery-recovery", public_recovery_status),
     Route("/garmin/push/activities", garmin_push_disabled, methods=["POST"]),
     Route("/garmin/push/activity-details", garmin_push_disabled, methods=["POST"]),
     Route("/garmin/push/activity-files", garmin_push_disabled, methods=["POST"]),

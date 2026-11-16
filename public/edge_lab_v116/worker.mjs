@@ -92,11 +92,13 @@ export async function handleSynthetic(request, env) {
 }
 
 import {handleBridge} from './bridge_v117.mjs';
+import {handleRecovery} from './recovery_v118.mjs';
 
 async function fetchRouter(request, env) {
   let path;
   try { path = new URL(request.url).pathname; } catch { return new Response('',{status:400}); }
   if (path.startsWith('/_lab/bridge/')) return handleBridge(request,env);
+  if (path.startsWith('/_lab/recovery/')) return handleRecovery(request,env);
   return handleSynthetic(request,env);
 }
 
