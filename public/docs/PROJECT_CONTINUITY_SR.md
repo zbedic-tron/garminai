@@ -1,3 +1,19 @@
+# GarminAI Public — projektni kontinuitet v1.1.5 (2026-11-16)
+
+**Trenutna verzija spremna za upload: 1.1.5.** Potvrđeni v1.1.4 je imao `readiness: BLOCKED`, javni Garmin push isključen i `GARMINAI_PUSH_REHEARSAL_STAGING_ENABLED=0`. Stvarni sintetički Neon E2E test bio je PASS u v1.1.3. **v1.1.5 još nije potvrđen na Renderu** dok korisnik ne postavi ZIP.
+
+## Novosti u v1.1.5
+
+- Dodata opcionalna **samo lokalna/sintetička** Cloudflare Workers/D1 laboratorija u `public/edge_lab_v115/`. Nije instalirana na Cloudflare, ne prima realne Garmin poruke, nema Garmin CIDR adresa, lozinki i stvarnih podataka. D1 SQL je **samo za Cloudflare D1**, ne za Neon.
+- Sintetički model: upis u D1 pre HTTP 200, idempotencija i konfliktni duplikati, DB 503; bez kontaktiranja Render servisa. Node testovi su lokalni, simulirani, ne dokazuju operativnu pouzdanost.
+- Nova read-only ruta `/garmin/ingress/edge-lab` jasno kaže da edge lab NIJE deployovan ni odobren za realni push.
+- Vraćeni ili očuvani svi prethodni blokatori `/garmin/ingress/readiness`, `/garmin/push/* → 503`, MCP-demo i Garmin OAuth povezivanje.
+- Lokalna verifikacija: `pytest -q` → **228 passed, 104 subtests passed**; postojeće JS simulacije **7+8+31+17 = 63**; novi Node edge testovi **11 passed**. Ne predstavlja test na stvarnom Cloudflare-u ili Render produkciji. Celokupni `http_server` startup nije pokrenut u trenutnom radnom okruženju bez MCP instalacije; proveriti posle Render deploya.
+- Bez nove Neon migracije, Render promenljivih, Garmin promena ili plaćenih servisa. Korisnik i dalje zahteva **0 € dodatnih troškova i diferencijalni ZIP <100 fajlova**.
+- Otvoreno: pouzdana stvarna IP provenance na odobrenoj platformi, 30-sekundni SLA, D1/edge garancije i kvote, ugovorne obaveze prema trećim stranama, Garmin AI zabrane, realni consent/brisanje/revokacija. **Ništa od toga nije rešeno ovom verzijom.**
+
+---
+
 # GarminAI Public — projektni dosije za nastavak u novom ChatGPT razgovoru
 
 **Aktuelna pripremljena verzija: v1.1.4 (2026-11-15).** Ovaj dokument je operativno stanje i istorija projekta, a nije dokaz da je nova verzija instalirana. Prvo pogledati `/healthz` i `/garmin/integration/status` na Renderu.

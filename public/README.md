@@ -183,3 +183,11 @@ client, resource URL or Neon provider. Improved token expiry enforcement,
 sanitized auth errors, concise read-only tool descriptions and offline
 negative tests. Activity data remains fictional and per-user scoped.
 See `docs/V092_STABILIZATION_SR.md`; additional spend **0 EUR**.
+
+
+## GarminAI Public v1.1.5 — synthetic edge durable ACK lab
+
+Read-only status `/garmin/ingress/edge-lab` and **offline** Cloudflare Workers + D1
+synthetic-only reference under `edge_lab_v115/`. NO real Garmin ingress, NO
+external deployment, NO Neon migration, NO AI sharing and NO extra spend.
+See `docs/V115_EDGE_SYNTHETIC_D1_LAB_SR.md`.
