@@ -1,3 +1,9 @@
+# v1.1.6 — optional Cloudflare Workers Free / D1 synthetic-only deployment lab (2026-11-16)
+
+The existing Garmin OAuth/Neon/MCP application remains unchanged in its real-data safeguards. New *optional* self-contained Windows PowerShell setup at `edge_lab_v116/Setup-Cloudflare-Free.ps1` creates a separate Cloudflare Workers Free/D1 lab only after manual Free-plan confirmation. It accepts **only fictional synthetic events**, uses a Cloudflare secret and is **never an authorized Garmin webhook**. See `edge_lab_v116/README_SR.md` and `docs/PROJECT_CONTINUITY_SR.md`. No new Render env vars, Neon migrations, Garmin endpoint activation or AI data sharing.
+
+---
+
 # GarminAI Public v1.1.4 — read-only Garmin push readiness audit
 
 **Javni Garmin push ostaje blokiran (503).** Nova samo-čitanje ruta `GET /garmin/ingress/readiness` izlaže otvorene operativne prepreke, bez poverljivih Garmin podataka ili dokaza o autentičnosti pošiljaoca. Nema novih SQL migracija ni podešavanja koja omogućavaju realni ingest. Detalji: `docs/V114_PUSH_READINESS_AUDIT_SR.md`.

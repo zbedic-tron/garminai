@@ -1,4 +1,4 @@
-"""v1.1.5 never opens production intake; edge lab is external OFFLINE source only."""
+"""v1.1.6 still never opens production intake; edge lab is external OFFLINE source only."""
 import unittest
 from pathlib import Path
 from starlette.applications import Starlette
@@ -13,8 +13,8 @@ ROOT=Path(__file__).resolve().parents[1]
 class EdgeLabAudit(unittest.TestCase):
     def test_public_contract_is_explicitly_not_deployed_or_real(self):
         s=edge_lab_status()
-        self.assertEqual(s['version'],'1.1.5')
-        self.assertEqual(s['mode'],'OFFLINE_SYNTHETIC_EDGE_LAB')
+        self.assertEqual(s['version'],'1.1.6')
+        self.assertEqual(s['mode'],'OPTIONAL_REMOTE_SYNTHETIC_EDGE_LAB')
         for key in ('edge_worker_deployed_by_garminai',
                     'edge_lab_handles_real_garmin_push',
                     'production_live_garmin_push_ready',
@@ -33,7 +33,7 @@ class EdgeLabAudit(unittest.TestCase):
         ])
         with TestClient(app) as c:
             r=c.get('/garmin/ingress/edge-lab');self.assertEqual(r.status_code,200)
-            self.assertEqual(r.json()['version'],'1.1.5')
+            self.assertEqual(r.json()['version'],'1.1.6')
             self.assertEqual(r.headers.get('cache-control'),'no-store')
             self.assertEqual(c.post('/garmin/ingress/edge-lab').status_code,405)
             x=c.post('/garmin/push/activities',headers={'CF-Connecting-IP':'203.0.113.55',
@@ -56,7 +56,7 @@ class EdgeLabAudit(unittest.TestCase):
         self.assertNotIn('GARMIN_CLIENT_SECRET',worker)
         source=(ROOT/'garminai_public/http_server.py').read_text()
         self.assertIn('Route("/garmin/ingress/edge-lab", public_edge_lab_status)',source)
-        self.assertIn('"version":"1.1.5"',source)
+        self.assertIn('"version":"1.1.6"',source)
         for path in ('activities','activity-details','activity-files','manually-updated',
                      'moveiq','deregistrations','permissions-change'):
             self.assertIn('Route("/garmin/push/'+path+'", garmin_push_disabled, methods=["POST"])',source)

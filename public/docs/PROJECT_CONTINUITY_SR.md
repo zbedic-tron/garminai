@@ -1,6 +1,26 @@
+# GarminAI Public — operativni dodatak v1.1.6 (2026-11-16)
+
+**Poslednja POTVRĐENA verzija na Renderu: 1.1.5.** Korisnik je poslao tri JSON odgovora: `/healthz` status ok 1.1.5; `/garmin/ingress/readiness` BLOCKED i testni prekidač false; `/garmin/ingress/edge-lab` OFFLINE_SYNTHETIC_EDGE_LAB. Garmin nalog je ranije potvrđen kao `linked:true` na MCP, ali AI pristup je false. Pripremljena verzija **1.1.6 nije još instalirana, niti je Cloudflare Worker deployovan**; to se mora proveriti naknadno.
+
+## Šta je novo u v1.1.6
+
+- Novi `public/edge_lab_v116/`: zaseban sintetički Cloudflare Worker i D1 schema, Node 20+ testovi, opciona PowerShell skripta `Setup-Cloudflare-Free.ps1 -Deploy` za **ručno potvrđeno** kreiranje resursa na Workers Free planu. Nema Garmin realnih događaja, korisničkih ID-eva, tokena iz Garmina ili poziva ka Renderu/Neonu.
+- PowerShell skripta zahteva `FREE` potvrdu pre kreiranja, koristi `wrangler login`, pravi posebnu D1 bazu i `workers.dev` endpoint, kreira 32-bytes nasumičnu laboratorijsku tajnu i šalje je Cloudflare kao `secret` bez upisa u repo. Radi tri sintetička zahteva (200/200/409) i meri latenciju. **Tajnu ne slati u ChatGPT**. Može biti potrebna instalacija Node.js 20+ (besplatno).
+- D1 SQL fajl `schema.sql` **NIKADA ne izvršavati u Neon SQL Editoru**. Nema nove Neon migracije, Render konfiguracije, promene MCP alata, Garmin OAuth-a, API Tools ili produkcionog prijema.
+- `public/garminai_public/http_server.py`, diagnostika i statički status izveštaji ažurirani na 1.1.6; `readiness` i dalje `BLOCKED`; real-data MCP i javni `/garmin/push/*` ostaju isključeni. Render read-only ruta **ne može da proveri da li je neko ručno deployovao Worker**.
+- Cloudflare pravno nije odobren kao primalac stvarnih Garmin podataka. Pre eventualne produkcije: pisano/ugovorno ovlašćenje za provajdera, verifikovana autentifikacija Garmin pošiljaoca, bezbedan redelivery, brisanje, privacy i AI uslovi. Ne unositi Worker URL u Garmin Endpoint Configuration.
+- Besplatne kvote prema Cloudflare javnoj dokumentaciji (provereno 2026-11-16): Workers 100k zahteva/dan, D1 5M pročitanih redova/dan, 100k upisanih/dan, ukupno 5GB skladišta, max 500MB po bazi. Limit nije pouzdan 30-sec Garmin SLA i CPU 10ms/invocation može biti prepreka. **Politika korisnika je 0 € dodatnih troškova.**
+- Preostala potvrda: lokalni testovi, stvarni Render deploy v1.1.6 i (ako se odluči) stvarni Cloudflare sintetički test. **Ne proglašavati D1 stvarnim testom dok ne postoje korisnikovi rezultati.**
+
+### Kako nastaviti u sledećem threadu
+
+Nastavi GarminAI Public na osnovu ovog dokumenta. Proveri `/healthz`, `/garmin/ingress/readiness`, `/garmin/ingress/edge-lab`. Ne ponavljaj 001–005 Neon migracije. Ako Cloudflare sintetička laboratorija još nije testirana, koristi `edge_lab_v116/README_SR.md`. Ne traži Garmin lozinke, API tajne niti stvarne aktivnosti. Ne uključuj Garmin push i ne uvodi AI obradu stvarnih podataka. Diferencijalni ZIP <100 fajlova, 0 €.
+
+---
+
 # GarminAI Public — projektni kontinuitet v1.1.5 (2026-11-16)
 
-**Trenutna verzija spremna za upload: 1.1.5.** Potvrđeni v1.1.4 je imao `readiness: BLOCKED`, javni Garmin push isključen i `GARMINAI_PUSH_REHEARSAL_STAGING_ENABLED=0`. Stvarni sintetički Neon E2E test bio je PASS u v1.1.3. **v1.1.5 još nije potvrđen na Renderu** dok korisnik ne postavi ZIP.
+**Istorijski zapis, sada prevaziđen:** v1.1.5 je u međuvremenu potvrđen na Renderu. Potvrđeni v1.1.4 je imao `readiness: BLOCKED`, javni Garmin push isključen i `GARMINAI_PUSH_REHEARSAL_STAGING_ENABLED=0`. Stvarni sintetički Neon E2E test bio je PASS u v1.1.3. **v1.1.5 je potom potvrđen na Renderu korisnikovim JSON odgovorima.**
 
 ## Novosti u v1.1.5
 
