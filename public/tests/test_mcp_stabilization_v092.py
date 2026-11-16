@@ -196,7 +196,7 @@ class StabilizedMCP(unittest.TestCase):
                if isinstance(node,(ast.FunctionDef,ast.AsyncFunctionDef)) and any(
                  isinstance(dec,ast.Call) and isinstance(dec.func,ast.Attribute)
                  and dec.func.attr=='tool' for dec in node.decorator_list)}
-        self.assertEqual(set(tools),{'get_sync_status','get_activities','get_demo_activity_details','get_garmin_connection_link','get_garmin_connection_status','disconnect_garmin_account','run_synthetic_push_rehearsal','run_synthetic_edge_to_neon_rehearsal','run_synthetic_delivery_recovery','get_synthetic_delivery_recovery_status'})
+        self.assertEqual(set(tools),{'get_sync_status','get_activities','get_demo_activity_details','get_garmin_connection_link','get_garmin_connection_status','disconnect_garmin_account','run_synthetic_push_rehearsal','run_synthetic_edge_to_neon_rehearsal','run_synthetic_delivery_recovery','get_synthetic_delivery_recovery_status','get_synthetic_delivery_observability','run_synthetic_delivery_safe_retry'})
         for name in ('get_sync_status','get_activities','get_demo_activity_details'):
             description=tools[name]
             self.assertIn('read-only',description.lower(),name)

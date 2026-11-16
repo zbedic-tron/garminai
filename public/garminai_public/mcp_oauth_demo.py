@@ -127,3 +127,27 @@ def get_synthetic_delivery_recovery_status(ctx: Context) -> dict:
     """
     from .garmin_delivery_recovery_v118 import status_from_context
     return status_from_context(ctx)
+
+
+@staging_mcp.tool()
+def get_synthetic_delivery_observability(ctx: Context) -> dict:
+    """READ ONLY v1.1.8 D1 receipt state and bounded manual retry budget (v1.1.9).
+
+    Identity-scoped; returns no personal identifier, token or Garmin data.
+    No new database, scheduler, independent Neon check or production SLA.
+    """
+    from .garmin_delivery_observability_v119 import observe_from_context
+    return observe_from_context(ctx)
+
+
+@staging_mcp.tool()
+def run_synthetic_delivery_safe_retry(confirmation: str, ctx: Context) -> dict:
+    """Retry an EXISTING PENDING fictional receipt once, only with explicit consent.
+
+    Requires RUN_SYNTHETIC_SAFE_RETRY and operator opt-in
+    GARMINAI_EDGE_RELIABILITY_STAGING_ENABLED=1. Never retries ACKED
+    receipts. Bounds attempts application-side (not a distributed quota).
+    No live Garmin data, public push, automatic retry or AI sharing.
+    """
+    from .garmin_delivery_observability_v119 import manual_retry_from_context
+    return manual_retry_from_context(ctx, confirmation)

@@ -1,3 +1,17 @@
+# GarminAI Public v1.1.9 — Synthetic Delivery Reliability & Observability
+
+**Nova bezbedna nadogradnja:** 2 MCP alata za privatni pregled postojećeg sintetičkog v1.1.8 D1 statusa i izričito potvrđen ručni retry **samo dok događaj čeka**. D1 već ima `ACKED_SYNTHETIC` sa 3 pokušaja posle potvrđenog v1.1.8 testa; taj zapis v1.1.9 ne resetuje niti ponavlja.
+
+- `get_synthetic_delivery_observability`: read-only status, brojač pokušaja, preostali limit i oznaka da istorija grešaka nije snimana. Radi bez testnog prekidača.
+- `run_synthetic_delivery_safe_retry`: zahteva `confirmation=RUN_SYNTHETIC_SAFE_RETRY` i zaseban operator flag `GARMINAI_EDGE_RELIABILITY_STAGING_ENABLED=1`, inače odbija. **Ne pozivati radi testiranja ako je već ACKED.**
+- Javni GET `/garmin/ingress/delivery-observability` daje samo konfiguracioni status, nikad privatne D1/Neon podatke.
+- Nema novih D1/Neon migracija, Cloudflare deploya, rotacije tokena, background scheduler-a ni novih plaćenih resursa.
+- **Stvarni Garmin push i stvarni MCP AI podaci su i dalje isključeni.** `/garmin/ingress/readiness` ostaje `BLOCKED`.
+
+Početak: `V119_START_HERE_SR.md`; kanonski status: `docs/PROJECT_CONTINUITY_SR.md`.
+
+---
+
 # GarminAI Public v1.1.7 — Synthetic Edge-to-Neon Bridge (opt-in)
 
 **Novina:** osmi MCP alat `run_synthetic_edge_to_neon_rehearsal` može uz izričitu potvrdu sintetički spojiti postojeću Cloudflare D1 laboratoriju i Neon RLS inbox. Nema javnog Render write endpointa, čitanja stvarnih Garmin aktivnosti ni AI deljenja. Pre instalacije obavezno pročitati `V117_START_HERE_SR.md` i `docs/V117_EDGE_TO_NEON_BRIDGE_SR.md`. Za test su potrebni odvojeni BRIDGE_TOKEN i privremeni operator prekidač; nakon testa isključiti. Produkcioni push i dalje 503 i `readiness: BLOCKED`. **0 € dodatnih troškova.**
